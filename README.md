@@ -4,18 +4,41 @@
 
 ## Features:
 
-- Copy Paste
+- ### Copy Paste
+
   - Stores geometry in a project-specific clipboard for easy copy/paste between mesh or curve objects
-- Planar UV
+
+    ![Screenshot-CopyPaste](images/Screenshot-CopyPaste.png)
+
+- ### Planar UV
+
   - Projects UV coordinates from a specified axis using numerical scale inputs for repeatability
-- Point Array
+
+    ![Screenshot-PlanarUV](images/Screenshot-PlanarUV.png)
+
+- ### Point Array
+
   - Generates vertex point arrays in various patterns, including cubic grid, golden spiral, poisson packing, and volume field data
-- Radial Offset
+
+    ![Screenshot-PointArray](images/Screenshot-PointArray.png)
+
+- ### Radial Offset
+
   - Offsets vertices using radial coordinates, useful for increasing radial scales by a specified distance
-- Segment Mesh
+
+    ![Screenshot-RadialOffset](images/Screenshot-RadialOffset.png)
+
+- ### Segment Mesh
+
   - Breaks up large contiguous meshes into chunks, useful for partitioning maps for use in game engines
-- Vertex Quantize
+
+    ![Screenshot-SegmentMesh](images/Screenshot-SegmentMesh.png)
+
+- ### Vertex Quantize
+
   - Snaps vertices to customisable XYZ steps
+
+    ![Screenshot-VertexQuantize](images/Screenshot-VertexQuantize.png)
 
 
 
