@@ -3,6 +3,7 @@ import os
 
 # Local imports
 from .copy_paste import MeshKit_Copy, MeshKit_Paste, MESHKIT_PT_copy_paste_geometry
+from . import mesh_align
 from .planar_uv import MeshKit_UV_Planar_Projection, MeshKit_UV_Load_Selection, MESHKIT_PT_planar_uv, MESHKIT_PT_planar_uv_advanced
 from .point_array import MeshKit_Point_Grid, MeshKit_Point_Golden, MeshKit_Point_Pack, MeshKit_Import_Position_Data, MeshKit_Import_Volume_Field, MESHKIT_PT_point_array
 from .radial_offset import MeshKit_Radial_Offset, MESHKIT_PT_radial_offset
@@ -34,6 +35,25 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 		description="Choose a category for the panel to be placed in",
 		default="Launch",
 		update=update_copypaste_category)
+		# Consider adding search_options=(list of currently available tabs) for easier operation
+	
+	########## Mesh Align ##########
+	
+	def update_meshalign_category(self, context):
+		category = bpy.context.preferences.addons[__package__].preferences.meshalign_category
+		try:
+			bpy.utils.unregister_class(MESHKIT_PT_mesh_align_origin)
+		except RuntimeError:
+			pass
+		if len(category) > 0:
+			MESHKIT_PT_mesh_align_origin.bl_category = category
+			bpy.utils.register_class(MESHKIT_PT_mesh_align_origin)
+	
+	meshalign_category: bpy.props.StringProperty(
+		name="Mesh Align Panel",
+		description="Choose a category for the panel to be placed in",
+		default="Launch",
+		update=update_meshalign_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
 	
 	########## Planar UV ##########
@@ -148,6 +168,10 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 		layout.label(text="Copy Paste", icon="PASTEDOWN") # COPYDOWN PASTEDOWN DUPLICATE
 		layout.prop(self, "copypaste_category", text='Sidebar Tab')
 		
+		########## Mesh Align ##########
+		layout.label(text="Mesh Align", icon="PIVOT_CURSOR") # PIVOT_CURSOR OBJECT_ORIGIN EMPTY_AXIS ORIENTATION_CURSOR PIVOT_BOUNDBOX MOD_WIREFRAME CUBE LIGHTPROBE_SPHERE
+		layout.prop(self, "update_meshalign_category", text='Sidebar Tab')
+		
 		########## Planar UV ##########
 		layout.separator(factor = 2.0)
 		layout.label(text="Planar UV", icon="MOD_UVPROJECT") # UV UV_DATA GROUP_UVS MOD_UVPROJECT FACE_MAPS VIEW_ORTHO
@@ -181,6 +205,39 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 # Local project settings
 
 class MeshKitSettings(bpy.types.PropertyGroup):
+	
+	########## Mesh Align ##########
+	
+	mesh_align_x: bpy.props.EnumProperty(
+		name='X',
+		description='X axis alignment',
+		items=[
+			('X', 'X', 'Leave X coordinate unchanged'),
+			('-', '-', 'Align object with negative X'),
+			('0', '0', 'Centre object along X axis'),
+			('+', '+', 'Align object with positive X')
+			],
+		default='X')
+	mesh_align_y: bpy.props.EnumProperty(
+		name='Y',
+		description='Y axis alignment',
+		items=[
+			('Y', 'Y', 'Leave Y coordinate unchanged'),
+			('-', '-', 'Align object with negative Y'),
+			('0', '0', 'Centre object along Y axis'),
+			('+', '+', 'Align object with positive Y')
+			],
+		default='Y')
+	mesh_align_z: bpy.props.EnumProperty(
+		name='Z',
+		description='Z axis alignment',
+		items=[
+			('Z', 'Z', 'Leave Z coordinate unchanged'),
+			('-', '-', 'Align object with negative Z'),
+			('0', '0', 'Centre object along Z axis'),
+			('+', '+', 'Align object with positive Z')
+			],
+		default='Z')
 	
 	########## Planar UV ##########
 	
@@ -706,6 +763,9 @@ def register():
 	# Add extension settings reference
 	bpy.types.Scene.mesh_kit_settings = bpy.props.PointerProperty(type=MeshKitSettings)
 	
+	########## Register Components ##########
+	
+	mesh_align.register()
 	
 	# Add keymaps for project versioning and viewport shading
 	wm = bpy.context.window_manager
@@ -776,6 +836,9 @@ def unregister():
 	
 	# Remove extension settings reference
 	del bpy.types.Scene.mesh_kit_settings
+	
+	########## Unregister Components ##########
+	mesh_align.unregister()
 	
 	# Deregister classes
 	for cls in reversed(classes):
