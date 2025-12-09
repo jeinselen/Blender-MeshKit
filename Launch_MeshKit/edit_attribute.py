@@ -341,10 +341,9 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 		# UI Layout
 		layout = self.layout
 		layout.use_property_decorate = False  # No animation
-		col = layout.column(align=True)
 		
 		# Attribute selection
-		col.prop(settings, "edit_attribute_name", text="")
+		layout.prop(settings, "edit_attribute_name", text="")
 		
 		# Attribute compatibility warning
 		obj = context.active_object
@@ -353,6 +352,42 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 		if attr is None:
 			layout.label(text="Select a compatible attribute", icon="INFO")
 			return
+		
+		# Data inputs
+		row = layout.row(align=False)
+		colA = row.column(align=True)
+		colB = row.column(align=True)
+		
+		apply_icon="WARNING_LARGE"
+		if attr.data_type == "FLOAT":
+			colA.prop(settings, "edit_attribute_float_a", text="")
+			colB.prop(settings, "edit_attribute_float_b", text="")
+			apply_icon="NODE_SOCKET_FLOAT"
+		elif attr.data_type == "FLOAT_VECTOR":
+			colA.prop(settings, "edit_attribute_vector_a", text="")
+			colB.prop(settings, "edit_attribute_vector_b", text="")
+			apply_icon="NODE_SOCKET_VECTOR"
+		elif attr.data_type in {"FLOAT_COLOR", "BYTE_COLOR"}:
+			colA.prop(settings, "edit_attribute_color_a", text="")
+			colB.prop(settings, "edit_attribute_color_b", text="")
+			apply_icon="NODE_SOCKET_RGBA"
+		else:
+			layout.label(text="Unsupported attribute type", icon="ERROR")
+			return
+		
+		# Apply buttons
+		op_a = colA.operator("mesh.attribute_apply_constant", text="Apply A", icon=apply_icon) # ADD REC IMPORT CURRENT_FILE EDITMODE_HLT
+		op_a.which = "A"
+		op_b = colB.operator("mesh.attribute_apply_constant", text="Apply B", icon=apply_icon)
+		op_b.which = "B"
+		
+		# Gradient controls
+		col = layout.column(align=True)
+		row = col.row(align=True)
+		row.prop(settings, "edit_attribute_item_a", text="")
+		row.prop(settings, "edit_attribute_item_b", text="")
+		col.prop(settings, "edit_attribute_interpolation", text="")
+		col.operator("mesh.attribute_apply_gradient", text="Apply Gradient", icon=apply_icon)
 		
 		# Attribute type label
 		domain_label_map = {
@@ -368,50 +403,9 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 		}
 		domain_label = domain_label_map.get(attr.domain, attr.domain.title())
 		type_label = type_label_map.get(attr.data_type, attr.data_type.title())
-		
 		row = col.row(align=False)
 		row.label(text=f"Domain: {domain_label}")
 		row.label(text=f"Type: {type_label}")
-		
-		# Gap
-		col.separator()
-		
-		# Data inputs
-		grid = col.grid_flow(row_major=True, columns=3, even_columns=True, even_rows=True, align=True)
-		
-		apply_icon="WARNING_LARGE"
-		if attr.data_type == "FLOAT":
-			grid.prop(settings, "edit_attribute_float_a", text="")
-			grid.separator()
-			grid.prop(settings, "edit_attribute_float_b", text="")
-			apply_icon="NODE_SOCKET_FLOAT"
-		elif attr.data_type == "FLOAT_VECTOR":
-			grid.prop(settings, "edit_attribute_vector_a", text="")
-			grid.separator()
-			grid.prop(settings, "edit_attribute_vector_b", text="")
-			apply_icon="NODE_SOCKET_VECTOR"
-		elif attr.data_type in {"FLOAT_COLOR", "BYTE_COLOR"}:
-			grid.prop(settings, "edit_attribute_color_a", text="")
-			grid.separator()
-			grid.prop(settings, "edit_attribute_color_b", text="")
-			apply_icon="NODE_SOCKET_RGBA"
-		else:
-			row.label(text="Unsupported attribute type", icon="ERROR")
-			return
-		
-		# Apply buttons
-		op_a = grid.operator("mesh.attribute_apply_constant", text="A", icon=apply_icon) # ADD REC IMPORT CURRENT_FILE EDITMODE_HLT
-		op_a.which = "A"
-		
-		grid.operator("mesh.attribute_apply_gradient", text="Gradient", icon=apply_icon)
-		
-		op_b = grid.operator("mesh.attribute_apply_constant", text="B", icon=apply_icon)
-		op_b.which = "B"
-		
-		# Gradient controls
-		grid.prop(settings, "edit_attribute_item_a", text="")
-		grid.prop(settings, "edit_attribute_interpolation", text="")
-		grid.prop(settings, "edit_attribute_item_b", text="")
 
 
 
