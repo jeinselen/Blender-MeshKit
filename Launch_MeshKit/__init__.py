@@ -8,6 +8,7 @@ from .planar_uv import MeshKit_UV_Planar_Projection, MeshKit_UV_Load_Selection, 
 from .point_array import MeshKit_Point_Grid, MeshKit_Point_Golden, MeshKit_Point_Pack, MeshKit_Import_Position_Data, MeshKit_Import_Volume_Field, MESHKIT_PT_point_array
 from .radial_offset import MeshKit_Radial_Offset, MESHKIT_PT_radial_offset
 from .segment_mesh import MeshKit_Segment_Mesh, meshkit_segment_mesh_preview, MESHKIT_PT_segment_mesh
+from . import edit_attribute
 from .vertex_quantize import MeshKit_Vertex_Quantize, MeshKit_UV_Quantize, MESHKIT_PT_vertex_quantize, MESHKIT_PT_uv_quantize
 
 
@@ -134,6 +135,25 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 		update=update_segmentmesh_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
 	
+	########## Edit Attribute ##########
+	
+	def update_editattribute_category(self, context):
+		category = bpy.context.preferences.addons[__package__].preferences.editattribute_category
+		try:
+			bpy.utils.unregister_class(edit_attribute.MESHKIT_PT_edit_attribute)
+		except RuntimeError:
+			pass
+		if len(category) > 0:
+			MESHKIT_PT_copy_paste_geometry.bl_category = category
+			bpy.utils.register_class(MESHKIT_PT_copy_paste_geometry)
+			
+	editattribute_category: bpy.props.StringProperty(
+		name="Attribute Editor Panel",
+		description="Choose a category for the panel to be placed in",
+		default="Launch",
+		update=update_editattribute_category)
+		# Consider adding search_options=(list of currently available tabs) for easier operation
+	
 	########## Vertex Quantize ##########
 	
 	def update_vertexquantise_category(self, context):
@@ -206,6 +226,115 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 
 class MeshKitSettings(bpy.types.PropertyGroup):
 	
+	
+	
+	########## Edit Attribute ##########
+	
+	def attribute_enum_items(self, context):
+		"""
+		Dynamic list of compatible attributes on the active mesh object.
+	
+		Only includes:
+		- Domains: POINT (vertex), EDGE, FACE
+		- Data types: FLOAT (value), FLOAT_VECTOR (vector), FLOAT_COLOR / BYTE_COLOR (color)
+		"""
+		items = []
+		
+		obj = getattr(context, "active_object", None) if context else None
+		if not obj or obj.type != "MESH":
+			return items
+		
+		mesh = obj.data
+		
+		for attr in mesh.attributes:
+			if attr.domain not in {"POINT", "EDGE", "FACE"}:
+				continue
+			if attr.data_type not in {"FLOAT", "FLOAT_VECTOR", "FLOAT_COLOR", "BYTE_COLOR"}:
+				continue
+			# Identifier and name both use the attribute name.
+			items.append((attr.name, attr.name, ""))
+			
+		return items
+	
+	# Attribute selection
+	edit_attribute_name: bpy.props.EnumProperty(
+		name="Attribute",
+		description="Existing mesh attribute to edit",
+		items=attribute_enum_items,
+	)
+	
+	# Float data
+	edit_attribute_float_a: bpy.props.FloatProperty(
+		name="Input A",
+		description="Scalar value for Input A",
+		default=0.0,
+	)
+	edit_attribute_float_b: bpy.props.FloatProperty(
+		name="Input B",
+		description="Scalar value for Input B",
+		default=1.0,
+	)
+	
+	# Vector data
+	edit_attribute_vector_a: bpy.props.FloatVectorProperty(
+		name="Input A",
+		description="Vector value for Input A",
+		size=3,
+		default=(0.0, 0.0, 0.0),
+	)
+	edit_attribute_vector_b: bpy.props.FloatVectorProperty(
+		name="Input B",
+		description="Vector value for Input B",
+		size=3,
+		default=(1.0, 1.0, 1.0),
+	)
+	
+	# Color data
+	edit_attribute_color_a: bpy.props.FloatVectorProperty(
+		name="Input A",
+		description="Color value for Input A",
+		subtype="COLOR",
+		size=4,
+		min=0.0,
+		max=1.0,
+		default=(0.0, 0.0, 0.0, 1.0),
+	)
+	edit_attribute_color_b: bpy.props.FloatVectorProperty(
+		name="Input B",
+		description="Color value for Input B",
+		subtype="COLOR",
+		size=4,
+		min=0.0,
+		max=1.0,
+		default=(1.0, 1.0, 1.0, 1.0),
+	)
+	
+	# Gradient endpoints
+	edit_attribute_item_a: bpy.props.PointerProperty(
+		name="Item A",
+		description="Scene item used as gradient start point",
+		type=bpy.types.Object,
+	)
+	edit_attribute_item_b: bpy.props.PointerProperty(
+		name="Item B",
+		description="Scene item used as gradient end point",
+		type=bpy.types.Object,
+	)
+	
+	# Interpolation mode: linear, smooth, smoother.
+	edit_attribute_interpolation: bpy.props.EnumProperty(
+		name="Interpolation",
+		description="Gradient interpolation mode",
+		items=[
+			("LINEAR", "Linear", "Linear interpolation"),
+			("SMOOTH", "Smooth", "Smoothstep interpolation"),
+			("SMOOTHER", "Smoother", "Smootherstep interpolation"),
+			],
+		default="LINEAR",
+	)
+	
+	
+	
 	########## Mesh Align ##########
 	
 	mesh_align_x: bpy.props.EnumProperty(
@@ -238,6 +367,8 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 			('+', '+', 'Align object with positive Z')
 			],
 		default='Z')
+	
+	
 	
 	########## Planar UV ##########
 	
@@ -765,6 +896,7 @@ def register():
 	
 	########## Register Components ##########
 	
+	edit_attribute.register()
 	mesh_align.register()
 	
 	# Add keymaps for project versioning and viewport shading
@@ -838,6 +970,7 @@ def unregister():
 	del bpy.types.Scene.mesh_kit_settings
 	
 	########## Unregister Components ##########
+	edit_attribute.unregister()
 	mesh_align.unregister()
 	
 	# Deregister classes
