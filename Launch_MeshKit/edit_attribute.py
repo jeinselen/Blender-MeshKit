@@ -376,45 +376,45 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 		# Gap
 		col.separator()
 		
-		# Inputs and Apply
-#		row.label(text="Data")
-		row = col.row(align=False)
+		# Data inputs
+		grid = col.grid_flow(row_major=True, columns=3, even_columns=True, even_rows=True, align=True)
+		
 		apply_icon="WARNING_LARGE"
 		if attr.data_type == "FLOAT":
-			row.prop(settings, "edit_attribute_float_a", text="")
-			row.prop(settings, "edit_attribute_float_b", text="")
+			grid.prop(settings, "edit_attribute_float_a", text="")
+			grid.separator()
+			grid.prop(settings, "edit_attribute_float_b", text="")
 			apply_icon="NODE_SOCKET_FLOAT"
 		elif attr.data_type == "FLOAT_VECTOR":
-			row.prop(settings, "edit_attribute_vector_a", text="")
-			row.prop(settings, "edit_attribute_vector_b", text="")
+			grid.prop(settings, "edit_attribute_vector_a", text="")
+			grid.separator()
+			grid.prop(settings, "edit_attribute_vector_b", text="")
 			apply_icon="NODE_SOCKET_VECTOR"
 		elif attr.data_type in {"FLOAT_COLOR", "BYTE_COLOR"}:
-			row.prop(settings, "edit_attribute_color_a", text="")
-			row.prop(settings, "edit_attribute_color_b", text="")
+			grid.prop(settings, "edit_attribute_color_a", text="")
+			grid.separator()
+			grid.prop(settings, "edit_attribute_color_b", text="")
 			apply_icon="NODE_SOCKET_RGBA"
 		else:
 			row.label(text="Unsupported attribute type", icon="ERROR")
 			return
 		
-		# Apply A / Apply B buttons
-		row = col.row(align=False)
-		op_a = row.operator("mesh.attribute_apply_constant", text="Apply", icon=apply_icon) # ADD REC IMPORT CURRENT_FILE EDITMODE_HLT
+		# Apply buttons
+		op_a = grid.operator("mesh.attribute_apply_constant", text="A", icon=apply_icon) # ADD REC IMPORT CURRENT_FILE EDITMODE_HLT
 		op_a.which = "A"
-		op_b = row.operator("mesh.attribute_apply_constant", text="Apply", icon=apply_icon)
+		
+		grid.operator("mesh.attribute_apply_gradient", text="Gradient", icon=apply_icon)
+		
+		op_b = grid.operator("mesh.attribute_apply_constant", text="B", icon=apply_icon)
 		op_b.which = "B"
 		
-		# Gap
-		col.separator()
-		
 		# Gradient controls
-#		row.label(text="Gradient")
-		row = col.row(align=False)
-		row.prop(settings, "edit_attribute_item_a", text="")
-		row.prop(settings, "edit_attribute_item_b", text="")
-		col.prop(settings, "edit_attribute_interpolation", text="")
-		col.operator("mesh.attribute_apply_gradient", text="Apply Gradient", icon=apply_icon)
-		
-		
+		grid.prop(settings, "edit_attribute_item_a", text="")
+		grid.prop(settings, "edit_attribute_interpolation", text="")
+		grid.prop(settings, "edit_attribute_item_b", text="")
+
+
+
 # ------------------------------------------------------------------------
 # Registration
 # ------------------------------------------------------------------------
