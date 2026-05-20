@@ -529,3 +529,30 @@ class MESHKIT_PT_segment_mesh(bpy.types.Panel):
 			
 		except Exception as exc:
 			print(str(exc) + " | Error in Mesh Kit Segment Mesh panel")
+
+
+
+###########################################################################
+# Registration
+
+classes = (
+	MeshKit_Segment_Mesh,
+	MESHKIT_PT_segment_mesh,
+)
+
+
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+
+
+
+def unregister():
+	for cls in reversed(classes):
+		bpy.utils.unregister_class(cls)
+
+
+
+if __name__ == "__main__":
+	register()

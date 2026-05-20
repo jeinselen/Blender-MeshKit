@@ -2,12 +2,12 @@ import bpy
 import os
 
 # Local imports
-from .copy_paste import MeshKit_Copy, MeshKit_Paste, MESHKIT_PT_copy_paste_geometry
+from . import copy_paste
 from . import mesh_align
-from .planar_uv import MeshKit_UV_Planar_Projection, MeshKit_UV_Load_Selection, MESHKIT_PT_planar_uv, MESHKIT_PT_planar_uv_advanced
-from .point_array import MeshKit_Point_Grid, MeshKit_Point_Golden, MeshKit_Point_Pack, MeshKit_Import_Position_Data, MeshKit_Import_Volume_Field, MESHKIT_PT_point_array
-from .radial_offset import MeshKit_Radial_Offset, MESHKIT_PT_radial_offset
-from .segment_mesh import MeshKit_Segment_Mesh, meshkit_segment_mesh_preview, MESHKIT_PT_segment_mesh
+from . import planar_uv
+from . import point_array
+from . import radial_offset
+from . import segment_mesh
 from . import edit_attribute
 from .vertex_quantize import MeshKit_Vertex_Quantize, MeshKit_UV_Quantize, MESHKIT_PT_vertex_quantize, MESHKIT_PT_uv_quantize
 
@@ -24,12 +24,12 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 	def update_copypaste_category(self, context):
 		category = bpy.context.preferences.addons[__package__].preferences.copypaste_category
 		try:
-			bpy.utils.unregister_class(MESHKIT_PT_copy_paste_geometry)
+			bpy.utils.unregister_class(copy_paste.MESHKIT_PT_copy_paste_geometry)
 		except RuntimeError:
 			pass
 		if len(category) > 0:
-			MESHKIT_PT_copy_paste_geometry.bl_category = category
-			bpy.utils.register_class(MESHKIT_PT_copy_paste_geometry)
+			copy_paste.MESHKIT_PT_copy_paste_geometry.bl_category = category
+			bpy.utils.register_class(copy_paste.MESHKIT_PT_copy_paste_geometry)
 	
 	copypaste_category: bpy.props.StringProperty(
 		name="Copy Paste Panel",
@@ -62,14 +62,14 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 	def update_planaruv_category(self, context):
 		category = bpy.context.preferences.addons[__package__].preferences.planaruv_category
 		try:
-			bpy.utils.unregister_class(MESHKIT_PT_planar_uv_advanced)
-			bpy.utils.unregister_class(MESHKIT_PT_planar_uv)
+			bpy.utils.unregister_class(planar_uv.MESHKIT_PT_planar_uv_advanced)
+			bpy.utils.unregister_class(planar_uv.MESHKIT_PT_planar_uv)
 		except RuntimeError:
 			pass
 		if len(category) > 0:
-			MESHKIT_PT_planar_uv.bl_category = category
-			bpy.utils.register_class(MESHKIT_PT_planar_uv)
-			bpy.utils.register_class(MESHKIT_PT_planar_uv_advanced)
+			planar_uv.MESHKIT_PT_planar_uv.bl_category = category
+			bpy.utils.register_class(planar_uv.MESHKIT_PT_planar_uv)
+			bpy.utils.register_class(planar_uv.MESHKIT_PT_planar_uv_advanced)
 	
 	planaruv_category: bpy.props.StringProperty(
 		name="Planar UV Panel",
@@ -83,12 +83,12 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 	def update_pointarray_category(self, context):
 		category = bpy.context.preferences.addons[__package__].preferences.pointarray_category
 		try:
-			bpy.utils.unregister_class(MESHKIT_PT_point_array)
+			bpy.utils.unregister_class(point_array.MESHKIT_PT_point_array)
 		except RuntimeError:
 			pass
 		if len(category) > 0:
-			MESHKIT_PT_point_array.bl_category = category
-			bpy.utils.register_class(MESHKIT_PT_point_array)
+			point_array.MESHKIT_PT_point_array.bl_category = category
+			bpy.utils.register_class(point_array.MESHKIT_PT_point_array)
 	
 	pointarray_category: bpy.props.StringProperty(
 		name="Point Array Panel",
@@ -102,12 +102,12 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 	def update_radialoffset_category(self, context):
 		category = bpy.context.preferences.addons[__package__].preferences.radialoffset_category
 		try:
-			bpy.utils.unregister_class(MESHKIT_PT_radial_offset)
+			bpy.utils.unregister_class(radial_offset.MESHKIT_PT_radial_offset)
 		except RuntimeError:
 			pass
 		if len(category) > 0:
-			MESHKIT_PT_radial_offset.bl_category = category
-			bpy.utils.register_class(MESHKIT_PT_radial_offset)
+			radial_offset.MESHKIT_PT_radial_offset.bl_category = category
+			bpy.utils.register_class(radial_offset.MESHKIT_PT_radial_offset)
 	
 	radialoffset_category: bpy.props.StringProperty(
 		name="Radial Offset Panel",
@@ -121,12 +121,12 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 	def update_segmentmesh_category(self, context):
 		category = bpy.context.preferences.addons[__package__].preferences.segmentmesh_category
 		try:
-			bpy.utils.unregister_class(MESHKIT_PT_segment_mesh)
+			bpy.utils.unregister_class(segment_mesh.MESHKIT_PT_segment_mesh)
 		except RuntimeError:
 			pass
 		if len(category) > 0:
-			MESHKIT_PT_segment_mesh.bl_category = category
-			bpy.utils.register_class(MESHKIT_PT_segment_mesh)
+			segment_mesh.MESHKIT_PT_segment_mesh.bl_category = category
+			bpy.utils.register_class(segment_mesh.MESHKIT_PT_segment_mesh)
 	
 	segmentmesh_category: bpy.props.StringProperty(
 		name="Segment Mesh Panel",
@@ -144,8 +144,8 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 		except RuntimeError:
 			pass
 		if len(category) > 0:
-			MESHKIT_PT_copy_paste_geometry.bl_category = category
-			bpy.utils.register_class(MESHKIT_PT_copy_paste_geometry)
+			copy_paste.MESHKIT_PT_copy_paste_geometry.bl_category = category
+			bpy.utils.register_class(copy_paste.MESHKIT_PT_copy_paste_geometry)
 			
 	editattribute_category: bpy.props.StringProperty(
 		name="Attribute Editor Panel",
@@ -726,7 +726,7 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 		soft_max=1000.0,
 		min=0.0,
 		max=10000.0,
-		update=meshkit_segment_mesh_preview)
+		update=segment_mesh.meshkit_segment_mesh_preview)
 	tile_count: bpy.props.IntVectorProperty(
 		name="Count",
 		description="Number of X/Y tiles",
@@ -738,7 +738,7 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 		soft_max=8,
 		min=1,
 		max=64,
-		update=meshkit_segment_mesh_preview)
+		update=segment_mesh.meshkit_segment_mesh_preview)
 	tile_bounds: bpy.props.EnumProperty(
 		name = 'Include',
 		description = 'Specify if geometry outside the tile area will be included in the nearest tile or not',
@@ -772,7 +772,7 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 		name="Preview",
 		description="Enable preview grid mesh",
 		default=False,
-		update=meshkit_segment_mesh_preview)
+		update=segment_mesh.meshkit_segment_mesh_preview)
 	
 	
 	
@@ -876,11 +876,6 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 # •Unregistration function
 
 classes = (MeshKitPreferences, MeshKitSettings,
-	MeshKit_Copy, MeshKit_Paste, MESHKIT_PT_copy_paste_geometry,
-	MeshKit_UV_Planar_Projection, MeshKit_UV_Load_Selection, MESHKIT_PT_planar_uv, MESHKIT_PT_planar_uv_advanced,
-	MeshKit_Point_Grid, MeshKit_Point_Golden, MeshKit_Point_Pack, MeshKit_Import_Position_Data, MeshKit_Import_Volume_Field, MESHKIT_PT_point_array,
-	MeshKit_Radial_Offset, MESHKIT_PT_radial_offset,
-	MeshKit_Segment_Mesh, MESHKIT_PT_segment_mesh,
 	MeshKit_Vertex_Quantize, MeshKit_UV_Quantize, MESHKIT_PT_vertex_quantize, MESHKIT_PT_uv_quantize)
 
 keymaps = []
@@ -897,6 +892,11 @@ def register():
 	
 	########## Register Components ##########
 	
+	copy_paste.register()
+	planar_uv.register()
+	point_array.register()
+	radial_offset.register()
+	segment_mesh.register()
 	edit_attribute.register()
 	mesh_align.register()
 	
@@ -904,48 +904,6 @@ def register():
 	wm = bpy.context.window_manager
 	kc = wm.keyconfigs.addon
 	if kc:
-		
-		########## Copy Paste ##########
-		
-		# Cut Windows
-		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
-		kmi = km.keymap_items.new(MeshKit_Copy.bl_idname, 'X', 'PRESS', ctrl=True)
-		kmi.properties.copy = False
-		keymaps.append((km, kmi))
-		
-		# Cut MacOS
-		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
-		kmi = km.keymap_items.new(MeshKit_Copy.bl_idname, 'X', 'PRESS', oskey=True)
-		kmi.properties.copy = False
-		keymaps.append((km, kmi))
-		
-		# Copy Windows
-		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
-		kmi = km.keymap_items.new(MeshKit_Copy.bl_idname, 'C', 'PRESS', ctrl=True)
-		kmi.properties.copy = True
-		keymaps.append((km, kmi))
-		
-		# Copy MacOS
-		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
-		kmi = km.keymap_items.new(MeshKit_Copy.bl_idname, 'C', 'PRESS', oskey=True)
-		kmi.properties.copy = True
-		keymaps.append((km, kmi))
-		
-		# Paste Windows
-		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
-		kmi = km.keymap_items.new(MeshKit_Paste.bl_idname, 'V', 'PRESS', ctrl=True)
-		keymaps.append((km, kmi))
-		
-		# Paste MacOS
-		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
-		kmi = km.keymap_items.new(MeshKit_Paste.bl_idname, 'V', 'PRESS', oskey=True)
-		keymaps.append((km, kmi))
-		
-		########## Radial Offset ##########
-		
-		# km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
-		# kmi = km.keymap_items.new(MeshKit_Radial_Offset.bl_idname, type='Q', value='PRESS', shift=True)
-		# keymaps.append((km, kmi))
 		
 		########## Vertex Quantize ##########
 		
@@ -973,6 +931,11 @@ def unregister():
 	########## Unregister Components ##########
 	edit_attribute.unregister()
 	mesh_align.unregister()
+	segment_mesh.unregister()
+	radial_offset.unregister()
+	point_array.unregister()
+	planar_uv.unregister()
+	copy_paste.unregister()
 	
 	# Deregister classes
 	for cls in reversed(classes):

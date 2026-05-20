@@ -309,3 +309,74 @@ class MESHKIT_PT_copy_paste_geometry(bpy.types.Panel):
 			box.label(text = 'Copied: ' + ', '.join(clipboardList))
 		except Exception as exc:
 			print(str(exc) + ' | Error in Mesh Kit Copy Paste Geometry panel')
+
+
+
+###########################################################################
+# Registration
+
+classes = (
+	MeshKit_Copy,
+	MeshKit_Paste,
+	MESHKIT_PT_copy_paste_geometry,
+)
+
+keymaps = []
+
+
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+
+	wm = bpy.context.window_manager
+	kc = wm.keyconfigs.addon
+	if kc:
+		# Cut Windows
+		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
+		kmi = km.keymap_items.new(MeshKit_Copy.bl_idname, 'X', 'PRESS', ctrl=True)
+		kmi.properties.copy = False
+		keymaps.append((km, kmi))
+
+		# Cut MacOS
+		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
+		kmi = km.keymap_items.new(MeshKit_Copy.bl_idname, 'X', 'PRESS', oskey=True)
+		kmi.properties.copy = False
+		keymaps.append((km, kmi))
+
+		# Copy Windows
+		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
+		kmi = km.keymap_items.new(MeshKit_Copy.bl_idname, 'C', 'PRESS', ctrl=True)
+		kmi.properties.copy = True
+		keymaps.append((km, kmi))
+
+		# Copy MacOS
+		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
+		kmi = km.keymap_items.new(MeshKit_Copy.bl_idname, 'C', 'PRESS', oskey=True)
+		kmi.properties.copy = True
+		keymaps.append((km, kmi))
+
+		# Paste Windows
+		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
+		kmi = km.keymap_items.new(MeshKit_Paste.bl_idname, 'V', 'PRESS', ctrl=True)
+		keymaps.append((km, kmi))
+
+		# Paste MacOS
+		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
+		kmi = km.keymap_items.new(MeshKit_Paste.bl_idname, 'V', 'PRESS', oskey=True)
+		keymaps.append((km, kmi))
+
+
+
+def unregister():
+	for km, kmi in keymaps:
+		km.keymap_items.remove(kmi)
+	keymaps.clear()
+
+	for cls in reversed(classes):
+		bpy.utils.unregister_class(cls)
+
+
+
+if __name__ == "__main__":
+	register()

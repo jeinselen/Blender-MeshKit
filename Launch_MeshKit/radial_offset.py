@@ -113,3 +113,43 @@ class MESHKIT_PT_radial_offset(bpy.types.Panel):
 				box.label(text="Active object must be a mesh with selected vertices")
 		except Exception as exc:
 			print(str(exc) + " | Error in Mesh Kit Radial Offset panel")
+
+
+
+###########################################################################
+# Registration
+
+classes = (
+	MeshKit_Radial_Offset,
+	MESHKIT_PT_radial_offset,
+)
+
+#keymaps = []
+
+
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+	
+#	wm = bpy.context.window_manager
+#	kc = wm.keyconfigs.addon
+#	if kc:
+#		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
+#		kmi = km.keymap_items.new(MeshKit_Radial_Offset.bl_idname, type='Q', value='PRESS', shift=True)
+#		keymaps.append((km, kmi))
+
+
+
+def unregister():
+#	for km, kmi in keymaps:
+#		km.keymap_items.remove(kmi)
+#	keymaps.clear()
+	
+	for cls in reversed(classes):
+		bpy.utils.unregister_class(cls)
+
+
+
+if __name__ == "__main__":
+	register()

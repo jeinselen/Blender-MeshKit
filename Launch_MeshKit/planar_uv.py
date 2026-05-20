@@ -231,4 +231,32 @@ class MESHKIT_PT_planar_uv_advanced(bpy.types.Panel):
 			layout.prop(context.scene.mesh_kit_settings, 'projection_align', expand=True)
 		except Exception as exc:
 			print(str(exc) + " | Error in Mesh Kit Planar UV Advanced panel")
-			
+
+
+
+###########################################################################
+# Registration
+
+classes = (
+	MeshKit_UV_Planar_Projection,
+	MeshKit_UV_Load_Selection,
+	MESHKIT_PT_planar_uv,
+	MESHKIT_PT_planar_uv_advanced,
+)
+
+
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+
+
+
+def unregister():
+	for cls in reversed(classes):
+		bpy.utils.unregister_class(cls)
+
+
+
+if __name__ == "__main__":
+	register()

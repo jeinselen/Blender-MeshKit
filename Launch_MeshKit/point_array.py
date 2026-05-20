@@ -894,3 +894,34 @@ class MESHKIT_PT_point_array(bpy.types.Panel):
 		
 		except Exception as exc:
 			print(str(exc) + " | Error in Mesh Kit Point Array panel")
+
+
+
+###########################################################################
+# Registration
+
+classes = (
+	MeshKit_Point_Grid,
+	MeshKit_Point_Golden,
+	MeshKit_Point_Pack,
+	MeshKit_Import_Position_Data,
+	MeshKit_Import_Volume_Field,
+	MESHKIT_PT_point_array,
+)
+
+
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+
+
+
+def unregister():
+	for cls in reversed(classes):
+		bpy.utils.unregister_class(cls)
+
+
+
+if __name__ == "__main__":
+	register()
