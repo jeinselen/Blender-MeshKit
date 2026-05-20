@@ -328,7 +328,7 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 	bl_region_type = "UI"
 	bl_category = 'Launch'
 	bl_options = {'DEFAULT_CLOSED'}
-	bl_order = 12
+	bl_order = 35
 	
 	@classmethod
 	def poll(cls, context):

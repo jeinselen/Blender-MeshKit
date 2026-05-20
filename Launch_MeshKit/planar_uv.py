@@ -161,7 +161,7 @@ class MESHKIT_PT_planar_uv(bpy.types.Panel):
 	bl_space_type = "VIEW_3D"
 	bl_region_type = "UI"
 	bl_category = "Launch"
-	bl_order = 10
+	bl_order = 36
 	bl_options = {'DEFAULT_CLOSED'}
 	
 	@classmethod

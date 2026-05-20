@@ -643,7 +643,7 @@ class MESHKIT_PT_point_array(bpy.types.Panel):
 	bl_space_type = "VIEW_3D"
 	bl_region_type = "UI"
 	bl_category = "Launch"
-	bl_order = 4
+	bl_order = 30
 	bl_options = {'DEFAULT_CLOSED'}
 	bl_label = "Point Array"
 	bl_idname = "MESHKIT_PT_point_array"

@@ -139,7 +139,7 @@ class MESHKIT_PT_mesh_align_origin(bpy.types.Panel):
 	bl_space_type = 'VIEW_3D'
 	bl_region_type = 'UI'
 	bl_category = "Launch"
-	bl_order = 12
+	bl_order = 34
 	bl_options = {'DEFAULT_CLOSED'}
 	
 	@classmethod

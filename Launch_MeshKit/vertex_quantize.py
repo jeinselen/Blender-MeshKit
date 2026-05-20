@@ -120,7 +120,7 @@ class MESHKIT_PT_vertex_quantize(bpy.types.Panel):
 	bl_space_type = "VIEW_3D"
 	bl_region_type = "UI"
 	bl_category = "Launch"
-	bl_order = 8
+	bl_order = 32
 	bl_options = {'DEFAULT_CLOSED'}
 	bl_label = "Vertex Quantize"
 	bl_idname = "MESHKIT_PT_vertex_quantize"
@@ -161,7 +161,7 @@ class MESHKIT_PT_uv_quantize(bpy.types.Panel):
 	bl_space_type = "IMAGE_EDITOR"
 	bl_region_type = "UI"
 	bl_category = 'Image'
-	bl_order = 10
+	bl_order = 32
 	bl_options = {'DEFAULT_CLOSED'}
 	bl_label = "UV Quantize"
 	bl_idname = "MESHKIT_PT_uv_quantize"

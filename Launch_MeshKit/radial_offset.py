@@ -75,7 +75,7 @@ class MESHKIT_PT_radial_offset(bpy.types.Panel):
 	bl_space_type = "VIEW_3D"
 	bl_region_type = "UI"
 	bl_category = "Launch"
-	bl_order = 6
+	bl_order = 31
 	bl_options = {'DEFAULT_CLOSED'}
 	bl_label = "Radial Offset"
 	bl_idname = "MESHKIT_PT_radial_offset"

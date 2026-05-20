@@ -189,8 +189,9 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 		layout.prop(self, "copypaste_category", text='Sidebar Tab')
 		
 		########## Mesh Align ##########
+		layout.separator(factor = 2.0)
 		layout.label(text="Mesh Align", icon="PIVOT_CURSOR") # PIVOT_CURSOR OBJECT_ORIGIN EMPTY_AXIS ORIENTATION_CURSOR PIVOT_BOUNDBOX MOD_WIREFRAME CUBE LIGHTPROBE_SPHERE
-		layout.prop(self, "update_meshalign_category", text='Sidebar Tab')
+		layout.prop(self, "meshalign_category", text='Sidebar Tab')
 		
 		########## Planar UV ##########
 		layout.separator(factor = 2.0)

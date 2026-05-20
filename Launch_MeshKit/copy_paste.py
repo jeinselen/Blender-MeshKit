@@ -270,7 +270,7 @@ class MESHKIT_PT_copy_paste_geometry(bpy.types.Panel):
 	bl_space_type = 'VIEW_3D'
 	bl_region_type = 'UI'
 	bl_category = "Launch"
-	bl_order = 12
+	bl_order = 39
 	bl_options = {'DEFAULT_CLOSED'}
 	
 	@classmethod

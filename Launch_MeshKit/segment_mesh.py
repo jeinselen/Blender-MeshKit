@@ -479,7 +479,7 @@ class MESHKIT_PT_segment_mesh(bpy.types.Panel):
 	bl_space_type = "VIEW_3D"
 	bl_region_type = "UI"
 	bl_category = "Launch"
-	bl_order = 20
+	bl_order = 38
 	bl_options = {'DEFAULT_CLOSED'}
 	bl_label = "Segment Mesh"
 	bl_idname = "MESHKIT_PT_segment_mesh"
