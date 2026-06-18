@@ -43,7 +43,8 @@ DATA_TYPE_TO_LAYER = {
 }
 
 # Curves (hair) datablocks store attribute values directly on
-# `attr.data[i].<field>`. This maps each supported data type to its field name.
+# `attr.data[i].<field>`. Meshes in Object Mode use the very same per-element
+# fields (no bmesh copy in play), so both direct-data paths share this map.
 CURVES_FIELD_FOR_TYPE = {
 	"FLOAT": "value",
 	"INT": "value",
@@ -120,8 +121,8 @@ def _validate_target(context, settings):
 	Returns (obj, data, attr, err). On error, err is a string and the rest may be None.
 	"""
 	obj = context.active_object
-	if obj is None or obj.mode != "EDIT" or obj.type not in {"MESH", "CURVES"}:
-		return None, None, None, "Active object must be a Mesh or Curves in Edit Mode."
+	if obj is None or obj.type not in {"MESH", "CURVES"}:
+		return None, None, None, "Active object must be a Mesh or Curves."
 	data = obj.data
 	attr_name = settings.edit_attribute_name
 	if not attr_name:
@@ -257,7 +258,10 @@ def apply_constant_to_attribute(context, settings, which):
 	if value is None:
 		return "Unsupported attribute data type."
 	if obj.type == "MESH":
-		return _apply_constant_mesh(obj, data, attr, value)
+		if obj.mode == "EDIT":
+			return _apply_constant_mesh(obj, data, attr, value)
+		return _apply_constant_mesh_object_mode(data, attr, value)
+	# Curves: direct attribute access works in both Edit and Object Mode.
 	return _apply_constant_curves(data, attr, value)
 
 
@@ -345,7 +349,9 @@ def apply_gradient_to_attribute(context, settings):
 	interp_mode = settings.edit_attribute_interpolation
 
 	if obj.type == "MESH":
-		return _apply_gradient_mesh(obj, data, attr, value_a, value_b, pa, dir_norm, length, interp_mode)
+		if obj.mode == "EDIT":
+			return _apply_gradient_mesh(obj, data, attr, value_a, value_b, pa, dir_norm, length, interp_mode)
+		return _apply_gradient_mesh_object_mode(obj, data, attr, value_a, value_b, pa, dir_norm, length, interp_mode)
 	return _apply_gradient_curves(obj, data, attr, value_a, value_b, pa, dir_norm, length, interp_mode)
 
 
@@ -411,6 +417,72 @@ def _bmesh_elem_position(elem, domain):
 		return (elem.verts[0].co + elem.verts[1].co) * 0.5
 	if domain == "FACE":
 		return elem.calc_center_median()
+	return None
+
+
+# ------------------------------------------------------------------------
+# Object Mode (mesh): direct attribute-data path
+#
+# Edit Mode mesh edits live in a bmesh copy, so they route through the bmesh
+# layers above. In Object Mode there is no bmesh — values are written straight
+# to `mesh.attributes[name].data[i]`, whose index lines up with the domain's
+# element collection. Selection comes from the persisted `.select` flags, and
+# BOOLEAN needs no special-casing here (no bmesh-layer limitation), so every
+# type uses the same field map as curves.
+# ------------------------------------------------------------------------
+
+
+def _mesh_object_mode_elements(mesh, domain):
+	"""Element collection whose index matches the attribute data for this domain."""
+	if domain == "POINT":
+		return mesh.vertices
+	if domain == "EDGE":
+		return mesh.edges
+	if domain == "FACE":
+		return mesh.polygons
+	return None
+
+
+def _mesh_object_elem_position(elem, mesh, domain):
+	"""Local-space position of a mesh element in Object Mode."""
+	if domain == "POINT":
+		return elem.co
+	if domain == "EDGE":
+		verts = mesh.vertices
+		return (verts[elem.vertices[0]].co + verts[elem.vertices[1]].co) * 0.5
+	if domain == "FACE":
+		return elem.center
+	return None
+
+
+def _apply_constant_mesh_object_mode(mesh, attr, value):
+	elements = _mesh_object_mode_elements(mesh, attr.domain)
+	if elements is None:
+		return "Unsupported attribute domain for this mesh."
+	field = CURVES_FIELD_FOR_TYPE[attr.data_type]
+	for i, elem in enumerate(elements):
+		if elem.select:
+			setattr(attr.data[i], field, value)
+	mesh.update_tag()
+	return None
+
+
+def _apply_gradient_mesh_object_mode(obj, mesh, attr, value_a, value_b, pa, dir_norm, length, interp_mode):
+	elements = _mesh_object_mode_elements(mesh, attr.domain)
+	if elements is None:
+		return "Unsupported attribute domain for this mesh."
+	dt = attr.data_type
+	field = CURVES_FIELD_FOR_TYPE[dt]
+	mat = obj.matrix_world
+	for i, elem in enumerate(elements):
+		if not elem.select:
+			continue
+		p_local = _mesh_object_elem_position(elem, mesh, attr.domain)
+		if p_local is None:
+			continue
+		f = _interp(_gradient_t(mat @ p_local, pa, dir_norm, length), interp_mode)
+		setattr(attr.data[i], field, _lerp_typed(value_a, value_b, f, dt))
+	mesh.update_tag()
 	return None
 
 
@@ -493,9 +565,7 @@ class MESH_OT_attribute_add(bpy.types.Operator):
 	@classmethod
 	def poll(cls, context):
 		obj = context.active_object
-		return (obj is not None
-			and obj.type in {"MESH", "CURVES"}
-			and obj.mode == "EDIT")
+		return obj is not None and obj.type in {"MESH", "CURVES"}
 
 	def invoke(self, context, event):
 		return context.window_manager.invoke_props_dialog(self)
@@ -546,9 +616,7 @@ class MESH_OT_attribute_apply_constant(bpy.types.Operator):
 	@classmethod
 	def poll(cls, context):
 		obj = context.active_object
-		return (obj is not None
-			and obj.type in {"MESH", "CURVES"}
-			and obj.mode == "EDIT")
+		return obj is not None and obj.type in {"MESH", "CURVES"}
 
 	def execute(self, context):
 		settings = context.scene.mesh_kit_settings
@@ -571,9 +639,7 @@ class MESH_OT_attribute_apply_gradient(bpy.types.Operator):
 	@classmethod
 	def poll(cls, context):
 		obj = context.active_object
-		return (obj is not None
-			and obj.type in {"MESH", "CURVES"}
-			and obj.mode == "EDIT")
+		return obj is not None and obj.type in {"MESH", "CURVES"}
 
 	def execute(self, context):
 		settings = context.scene.mesh_kit_settings
@@ -584,10 +650,39 @@ class MESH_OT_attribute_apply_gradient(bpy.types.Operator):
 		return {"FINISHED"}
 	
 	
+class MESH_OT_convert_legacy_curve(bpy.types.Operator):
+	"""Convert the active legacy Curve (Bézier/NURBS/Poly) into a modern Curves
+	object so its points and curves expose editable attributes."""
+	bl_idname = "mesh.convert_legacy_curve_to_curves"
+	bl_label = "Convert to Curves"
+	bl_options = {"REGISTER", "UNDO"}
+
+	@classmethod
+	def poll(cls, context):
+		obj = context.active_object
+		return obj is not None and obj.type == "CURVE"
+
+	def execute(self, context):
+		obj = context.active_object
+		# object.convert only polls in Object Mode, so drop out of Edit first.
+		was_edit = obj.mode == "EDIT"
+		if was_edit:
+			bpy.ops.object.mode_set(mode="OBJECT")
+		try:
+			bpy.ops.object.convert(target="CURVES")
+		except RuntimeError as e:
+			self.report({"ERROR"}, f"Could not convert to Curves: {e}")
+			return {"CANCELLED"}
+		# Return to Edit Mode on the converted object if that's where the user was.
+		if was_edit and context.active_object is not None:
+			bpy.ops.object.mode_set(mode="EDIT")
+		return {"FINISHED"}
+
+
 # ------------------------------------------------------------------------
 # Panel
 # ------------------------------------------------------------------------
-	
+
 class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 	"""
 	Panel in the 3D Viewport sidebar to control attribute editing in Edit Mode.
@@ -600,13 +695,13 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 	bl_category = 'Launch'
 	bl_options = {'DEFAULT_CLOSED'}
 	bl_order = 35
-	
+
 	@classmethod
 	def poll(cls, context):
+		# Always show for meshes/curves (legacy CURVE included so we can offer a
+		# conversion). The panel works in both Object and Edit Mode.
 		obj = context.active_object
-		return (obj is not None
-			and obj.type in {"MESH", "CURVES"}
-			and obj.mode == "EDIT")
+		return obj is not None and obj.type in {"MESH", "CURVES", "CURVE"}
 
 	def draw(self, context):
 		settings = context.scene.mesh_kit_settings
@@ -614,9 +709,19 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 		# UI Layout
 		layout = self.layout
 		layout.use_property_decorate = False  # No animation
-		
-		# Attribute selection + create
+
 		obj = context.active_object
+
+		# Legacy Curve (Bézier/NURBS/Poly) has no attribute system at all. Offer
+		# a one-click conversion to the modern Curves object instead.
+		if obj is not None and obj.type == "CURVE":
+			col = layout.column(align=True)
+			col.label(text="Legacy curves have no attributes.", icon="INFO")
+			col.label(text="Convert to a Curves object to edit.")
+			layout.operator("mesh.convert_legacy_curve_to_curves", icon="OUTLINER_OB_CURVES")
+			return
+
+		# Attribute selection + create
 		data = obj.data if obj and obj.type in {"MESH", "CURVES"} else None
 		any_compatible = has_compatible_attributes(obj)
 
@@ -712,6 +817,7 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 		
 classes = (
 	MESH_OT_attribute_add,
+	MESH_OT_convert_legacy_curve,
 	MESH_OT_attribute_apply_constant,
 	MESH_OT_attribute_apply_gradient,
 	MESHKIT_PT_edit_attribute,
