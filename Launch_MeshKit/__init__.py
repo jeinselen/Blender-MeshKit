@@ -233,28 +233,35 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 	
 	def attribute_enum_items(self, context):
 		"""
-		Dynamic list of compatible attributes on the active mesh object.
-	
-		Only includes:
-		- Domains: POINT (vertex), EDGE, FACE
-		- Data types: FLOAT (value), FLOAT_VECTOR (vector), FLOAT_COLOR / BYTE_COLOR (color)
+		Dynamic list of compatible attributes on the active mesh or curves object.
+
+		Includes:
+		- Mesh domains: POINT, EDGE, FACE.  Curves domains: POINT, CURVE.
+		- Data types: FLOAT, INT, BOOLEAN, FLOAT_VECTOR, FLOAT_COLOR, BYTE_COLOR.
 		"""
 		items = []
-		
+
 		obj = getattr(context, "active_object", None) if context else None
-		if not obj or obj.type != "MESH":
+		if not obj:
 			return items
-		
-		mesh = obj.data
-		
-		for attr in mesh.attributes:
-			if attr.domain not in {"POINT", "EDGE", "FACE"}:
+		if obj.type == "MESH":
+			valid_domains = {"POINT", "EDGE", "FACE"}
+		elif obj.type == "CURVES":
+			valid_domains = {"POINT", "CURVE"}
+		else:
+			return items
+
+		valid_types = {"FLOAT", "INT", "BOOLEAN", "FLOAT_VECTOR", "FLOAT_COLOR", "BYTE_COLOR"}
+		for attr in obj.data.attributes:
+			if attr.domain not in valid_domains:
 				continue
-			if attr.data_type not in {"FLOAT", "FLOAT_VECTOR", "FLOAT_COLOR", "BYTE_COLOR"}:
+			if attr.data_type not in valid_types:
 				continue
-			# Identifier and name both use the attribute name.
+			# Skip internal attributes (".selection", ".sculpt_mask", etc.)
+			if attr.name.startswith("."):
+				continue
 			items.append((attr.name, attr.name, ""))
-			
+
 		return items
 	
 	# Attribute selection
@@ -309,7 +316,31 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 		max=1.0,
 		default=(1.0, 1.0, 1.0, 1.0),
 	)
-	
+
+	# Integer data
+	edit_attribute_int_a: bpy.props.IntProperty(
+		name="Input A",
+		description="Integer value for Input A",
+		default=0,
+	)
+	edit_attribute_int_b: bpy.props.IntProperty(
+		name="Input B",
+		description="Integer value for Input B",
+		default=1,
+	)
+
+	# Boolean data
+	edit_attribute_bool_a: bpy.props.BoolProperty(
+		name="Input A",
+		description="Boolean value for Input A",
+		default=False,
+	)
+	edit_attribute_bool_b: bpy.props.BoolProperty(
+		name="Input B",
+		description="Boolean value for Input B",
+		default=True,
+	)
+
 	# Gradient endpoints
 	edit_attribute_item_a: bpy.props.PointerProperty(
 		name="Item A",

@@ -32,12 +32,28 @@ DOMAIN_TO_BMSEQ = {
 
 
 # Map attribute data types to BMesh custom-data layer collections.
+# BOOLEAN is intentionally absent: bmesh exposes no bool layer accessor, so mesh
+# BOOLEAN attributes are written via a brief object-mode toggle instead.
 DATA_TYPE_TO_LAYER = {
 	"FLOAT": "float",            # Scalar value
+	"INT": "int",                # Integer value
 	"FLOAT_VECTOR": "float_vector",  # 3D vector
 	"FLOAT_COLOR": "float_color",    # Float color (RGBA)
 	"BYTE_COLOR": "color",           # Byte color (RGBA)
 }
+
+# Curves (hair) datablocks store attribute values directly on
+# `attr.data[i].<field>`. This maps each supported data type to its field name.
+CURVES_FIELD_FOR_TYPE = {
+	"FLOAT": "value",
+	"INT": "value",
+	"BOOLEAN": "value",
+	"FLOAT_VECTOR": "vector",
+	"FLOAT_COLOR": "color",
+	"BYTE_COLOR": "color",
+}
+
+ALL_SUPPORTED_TYPES = set(CURVES_FIELD_FOR_TYPE.keys())
 
 
 
@@ -76,181 +92,324 @@ def smootherstep(t):
 
 
 
-def apply_constant_to_attribute(context, settings, which):
-	"""
-	Apply a constant Input A or Input B value to the selected elements
-	of the currently selected attribute on the active mesh in Edit Mode.
+def _validate_target(context, settings):
+	"""Common pre-flight check for apply operators.
 
-	Returns:
-		None on success, or an error string.
+	Returns (obj, data, attr, err). On error, err is a string and the rest may be None.
 	"""
 	obj = context.active_object
-	if obj is None or obj.type != "MESH" or obj.mode != "EDIT":
-		return "Active object must be a Mesh in Edit Mode."
-	
-	mesh = obj.data
-	
+	if obj is None or obj.mode != "EDIT" or obj.type not in {"MESH", "CURVES"}:
+		return None, None, None, "Active object must be a Mesh or Curves in Edit Mode."
+	data = obj.data
 	attr_name = settings.edit_attribute_name
 	if not attr_name:
-		return "No attribute selected."
-	
-	attr = mesh.attributes.get(attr_name)
+		return obj, data, None, "No attribute selected."
+	attr = data.attributes.get(attr_name)
 	if attr is None:
-		return "Selected attribute not found on mesh."
-	
-	if attr.domain not in DOMAIN_TO_BMSEQ:
-		return "Attribute domain must be vertex, edge, or face."
-	
-	if attr.data_type not in DATA_TYPE_TO_LAYER:
-		return "Attribute data type must be value, vector, or color."
-	
-	# Resolve the value to apply based on type and A/B selection.
-	dt = attr.data_type
+		return obj, data, None, "Selected attribute not found."
+	valid_domains = {"POINT", "EDGE", "FACE"} if obj.type == "MESH" else {"POINT", "CURVE"}
+	if attr.domain not in valid_domains:
+		return obj, data, attr, "Attribute domain not supported for this object type."
+	if attr.data_type not in ALL_SUPPORTED_TYPES:
+		return obj, data, attr, "Attribute data type not supported."
+	return obj, data, attr, None
+
+
+def _resolve_value(settings, dt, which):
+	"""Resolve the user-input value for the given data type and A/B selector."""
+	s = "_a" if which == "A" else "_b"
 	if dt == "FLOAT":
-		value = settings.edit_attribute_float_a if which == "A" else settings.edit_attribute_float_b
-	elif dt == "FLOAT_VECTOR":
-		value = Vector(settings.edit_attribute_vector_a if which == "A" else settings.edit_attribute_vector_b)
-	elif dt in {"FLOAT_COLOR", "BYTE_COLOR"}:
-		value = Vector(settings.edit_attribute_color_a if which == "A" else settings.edit_attribute_color_b)
-	else:
+		return float(getattr(settings, "edit_attribute_float" + s))
+	if dt == "INT":
+		return int(getattr(settings, "edit_attribute_int" + s))
+	if dt == "BOOLEAN":
+		return bool(getattr(settings, "edit_attribute_bool" + s))
+	if dt == "FLOAT_VECTOR":
+		return Vector(getattr(settings, "edit_attribute_vector" + s))
+	if dt in {"FLOAT_COLOR", "BYTE_COLOR"}:
+		return Vector(getattr(settings, "edit_attribute_color" + s))
+	return None
+
+
+def _lerp_typed(va, vb, f, dt):
+	"""Interpolate by data type. INT rounds; BOOLEAN thresholds at f >= 0.5."""
+	if dt == "FLOAT":
+		return (1.0 - f) * va + f * vb
+	if dt == "INT":
+		return int(round((1.0 - f) * va + f * vb))
+	if dt == "BOOLEAN":
+		return vb if f >= 0.5 else va
+	# FLOAT_VECTOR / FLOAT_COLOR / BYTE_COLOR — Vector.lerp
+	return va.lerp(vb, f)
+
+
+def _interp(t, mode):
+	if mode == "SMOOTH":
+		return smoothstep(t)
+	if mode == "SMOOTHER":
+		return smootherstep(t)
+	return t  # LINEAR
+
+
+def _gradient_t(p_world, pa, dir_norm, length):
+	t = (p_world - pa).dot(dir_norm) / length
+	return max(0.0, min(1.0, t))
+
+
+def _curves_selection_truthy(item):
+	"""The .selection attribute can be BOOLEAN or FLOAT — treat >0.5 / True as selected."""
+	v = getattr(item, "value", False)
+	if isinstance(v, bool):
+		return v
+	try:
+		return float(v) > 0.5
+	except (TypeError, ValueError):
+		return False
+
+
+def _curves_domain_length(curves, domain):
+	if domain == "POINT":
+		return len(curves.points)
+	if domain == "CURVE":
+		return len(curves.curves)
+	return 0
+
+
+def _curves_target_indices(curves, domain):
+	"""Indices to edit on a Curves object — filtered by .selection when its domain matches."""
+	total = _curves_domain_length(curves, domain)
+	sel = curves.attributes.get(".selection")
+	if sel is not None and sel.domain == domain and len(sel.data) == total:
+		return [i for i in range(total) if _curves_selection_truthy(sel.data[i])]
+	return list(range(total))
+
+
+def _curves_position_local(curves, domain, idx, pos_attr):
+	"""Local-space position of a curves element (point or curve center).
+
+	The per-curve range API has had name churn across Blender versions;
+	probe known variants and fall back to a `points` collection if exposed.
+	"""
+	if domain == "POINT":
+		return Vector(pos_attr.data[idx].vector)
+	# CURVE: average of the curve's points.
+	curve = curves.curves[idx]
+	start = getattr(curve, "first_point_index", None)
+	if start is None:
+		start = getattr(curve, "points_first", None)
+	count = getattr(curve, "points_length", None)
+	if count is None:
+		count = getattr(curve, "points_num", None)
+	if start is not None and count and count > 0:
+		acc = Vector((0.0, 0.0, 0.0))
+		for j in range(start, start + count):
+			acc += Vector(pos_attr.data[j].vector)
+		return acc / count
+	# Final fallback: per-curve points collection, if exposed.
+	pts = getattr(curve, "points", None)
+	if pts:
+		acc = Vector((0.0, 0.0, 0.0))
+		n = 0
+		for p in pts:
+			pos = getattr(p, "position", None) or getattr(p, "co", None)
+			if pos is None:
+				continue
+			acc += Vector(pos)
+			n += 1
+		if n > 0:
+			return acc / n
+	return Vector((0.0, 0.0, 0.0))
+
+
+# ------------------------------------------------------------------------
+# Apply: constant
+# ------------------------------------------------------------------------
+
+
+def apply_constant_to_attribute(context, settings, which):
+	"""Apply a constant value (Input A or B) to selected elements of the chosen attribute."""
+	obj, data, attr, err = _validate_target(context, settings)
+	if err:
+		return err
+	value = _resolve_value(settings, attr.data_type, which)
+	if value is None:
 		return "Unsupported attribute data type."
-	
+	if obj.type == "MESH":
+		return _apply_constant_mesh(obj, data, attr, value)
+	return _apply_constant_curves(data, attr, value)
+
+
+def _apply_constant_mesh(obj, mesh, attr, value):
+	dt = attr.data_type
+	if dt == "BOOLEAN":
+		return _apply_mesh_boolean_constant(obj, mesh, attr, bool(value))
 	bm = bmesh.from_edit_mesh(mesh)
 	domain_seq = get_bmesh_domain_seq(bm, attr.domain)
 	if domain_seq is None:
 		return "Could not resolve BMesh domain for attribute."
-	
-	layer = get_bmesh_layer(domain_seq, attr.data_type, attr.name)
+	layer = get_bmesh_layer(domain_seq, dt, attr.name)
 	if layer is None:
 		return "Could not find BMesh layer for attribute."
-	
-	# Assign constant value to all selected elements in this domain.
 	for elem in domain_seq:
 		if getattr(elem, "select", False):
 			elem[layer] = value
-			
 	bmesh.update_edit_mesh(mesh, loop_triangles=False, destructive=False)
-	return None  # Success
+	return None
 
+
+def _mesh_selected_indices(mesh, domain):
+	"""Collect selected element indices in mesh Edit Mode using bmesh."""
+	bm = bmesh.from_edit_mesh(mesh)
+	domain_seq = get_bmesh_domain_seq(bm, domain)
+	if domain_seq is None:
+		return []
+	domain_seq.ensure_lookup_table()
+	return [i for i, elem in enumerate(domain_seq) if getattr(elem, "select", False)]
+
+
+def _apply_mesh_boolean_constant(obj, mesh, attr, value):
+	"""bmesh has no bool layer — collect selection in edit mode, write in object mode."""
+	indices = _mesh_selected_indices(mesh, attr.domain)
+	if not indices:
+		return None
+	attr_name = attr.name
+	bpy.ops.object.mode_set(mode="OBJECT")
+	try:
+		data_attr = mesh.attributes.get(attr_name)
+		if data_attr is None:
+			return "Attribute disappeared during mode toggle."
+		for i in indices:
+			data_attr.data[i].value = value
+	finally:
+		bpy.ops.object.mode_set(mode="EDIT")
+	return None
+
+
+def _apply_constant_curves(curves, attr, value):
+	field = CURVES_FIELD_FOR_TYPE[attr.data_type]
+	for i in _curves_target_indices(curves, attr.domain):
+		setattr(attr.data[i], field, value)
+	curves.update_tag()
+	return None
+
+
+# ------------------------------------------------------------------------
+# Apply: gradient
+# ------------------------------------------------------------------------
 
 
 def apply_gradient_to_attribute(context, settings):
-	"""
-	Apply a gradient between Input A and Input B to the selected elements
-	of the currently selected attribute on the active mesh in Edit Mode.
+	"""Apply a world-space gradient between Item A and Item B across selected elements."""
+	obj, data, attr, err = _validate_target(context, settings)
+	if err:
+		return err
 
-	Gradient is computed in world space along the line between Item A and Item B.
-	Interpolation is clamped to [0, 1] and can be linear, smoothstep, or smootherstep.
+	value_a = _resolve_value(settings, attr.data_type, "A")
+	value_b = _resolve_value(settings, attr.data_type, "B")
+	if value_a is None or value_b is None:
+		return "Unsupported attribute data type."
 
-	Returns:
-		None on success, or an error string.
-	"""
-	obj = context.active_object
-	if obj is None or obj.type != "MESH" or obj.mode != "EDIT":
-		return "Active object must be a Mesh in Edit Mode."
-	
-	mesh = obj.data
-	
-	attr_name = settings.edit_attribute_name
-	if not attr_name:
-		return "No attribute selected."
-	
-	attr = mesh.attributes.get(attr_name)
-	if attr is None:
-		return "Selected attribute not found on mesh."
-	
-	if attr.domain not in DOMAIN_TO_BMSEQ:
-		return "Attribute domain must be vertex, edge, or face."
-	
-	if attr.data_type not in DATA_TYPE_TO_LAYER:
-		return "Attribute data type must be value, vector, or color."
-	
 	obj_a = settings.edit_attribute_item_a
 	obj_b = settings.edit_attribute_item_b
 	if obj_a is None or obj_b is None:
 		return "Both Item A and Item B must be set."
-	
-	# World-space positions of gradient endpoints (object origins).
 	pa = obj_a.matrix_world.translation
 	pb = obj_b.matrix_world.translation
-	
 	direction = pb - pa
 	length = direction.length
 	if length == 0.0:
 		return "Item A and Item B must not be at the same position."
-	
-	dir_normalized = direction / length
-	
-	dt = attr.data_type
-	if dt == "FLOAT":
-		edit_attribute_float_a = settings.edit_attribute_float_a
-		edit_attribute_float_b = settings.edit_attribute_float_b
-	elif dt == "FLOAT_VECTOR":
-		edit_attribute_float_a = Vector(settings.edit_attribute_vector_a)
-		edit_attribute_float_b = Vector(settings.edit_attribute_vector_b)
-	elif dt in {"FLOAT_COLOR", "BYTE_COLOR"}:
-		edit_attribute_float_a = Vector(settings.edit_attribute_color_a)
-		edit_attribute_float_b = Vector(settings.edit_attribute_color_b)
-	else:
-		return "Unsupported attribute data type."
-	
+	dir_norm = direction / length
 	interp_mode = settings.edit_attribute_interpolation
-	
+
+	if obj.type == "MESH":
+		return _apply_gradient_mesh(obj, data, attr, value_a, value_b, pa, dir_norm, length, interp_mode)
+	return _apply_gradient_curves(obj, data, attr, value_a, value_b, pa, dir_norm, length, interp_mode)
+
+
+def _apply_gradient_mesh(obj, mesh, attr, value_a, value_b, pa, dir_norm, length, interp_mode):
+	dt = attr.data_type
+	mat = obj.matrix_world
+
+	if dt == "BOOLEAN":
+		# Compute per-element f in edit mode, then write in object mode.
+		bm = bmesh.from_edit_mesh(mesh)
+		domain_seq = get_bmesh_domain_seq(bm, attr.domain)
+		if domain_seq is None:
+			return "Could not resolve BMesh domain for attribute."
+		domain_seq.ensure_lookup_table()
+		writes = []
+		for i, elem in enumerate(domain_seq):
+			if not getattr(elem, "select", False):
+				continue
+			p_local = _bmesh_elem_position(elem, attr.domain)
+			if p_local is None:
+				continue
+			f = _interp(_gradient_t(mat @ p_local, pa, dir_norm, length), interp_mode)
+			writes.append((i, _lerp_typed(value_a, value_b, f, dt)))
+		if not writes:
+			return None
+		attr_name = attr.name
+		bpy.ops.object.mode_set(mode="OBJECT")
+		try:
+			data_attr = mesh.attributes.get(attr_name)
+			if data_attr is None:
+				return "Attribute disappeared during mode toggle."
+			for i, v in writes:
+				data_attr.data[i].value = bool(v)
+		finally:
+			bpy.ops.object.mode_set(mode="EDIT")
+		return None
+
 	bm = bmesh.from_edit_mesh(mesh)
 	domain_seq = get_bmesh_domain_seq(bm, attr.domain)
 	if domain_seq is None:
 		return "Could not resolve BMesh domain for attribute."
-	
-	layer = get_bmesh_layer(domain_seq, attr.data_type, attr.name)
+	layer = get_bmesh_layer(domain_seq, dt, attr.name)
 	if layer is None:
 		return "Could not find BMesh layer for attribute."
-	
-	mat = obj.matrix_world
-	
-	# Iterate over selected elements and assign gradient values.
+
 	for elem in domain_seq:
 		if not getattr(elem, "select", False):
 			continue
-		
-		# Compute element position in world space depending on domain.
-		if attr.domain == "POINT":
-			# Vertex position.
-			p_local = elem.co
-		elif attr.domain == "EDGE":
-			# Edge midpoint.
-			p_local = (elem.verts[0].co + elem.verts[1].co) * 0.5
-		elif attr.domain == "FACE":
-			# Face center (median).
-			p_local = elem.calc_center_median()
-		else:
-			# Should not happen, already filtered domains.
+		p_local = _bmesh_elem_position(elem, attr.domain)
+		if p_local is None:
 			continue
-		
-		p_world = mat @ p_local
-		
-		# Parameter t along the A->B segment, clamped to [0, 1].
-		# Projection of (p - pa) onto the direction vector.
-		t = (p_world - pa).dot(dir_normalized) / length
-		t = max(0.0, min(1.0, t))
-		
-		# Apply interpolation mode to t.
-		if interp_mode == "SMOOTH":
-			f = smoothstep(t)
-		elif interp_mode == "SMOOTHER":
-			f = smootherstep(t)
-		else:
-			f = t  # Linear
-			
-		# Interpolate between Input A and Input B.
-		if dt == "FLOAT":
-			value = (1.0 - f) * edit_attribute_float_a + f * edit_attribute_float_b
-		else:
-			value = edit_attribute_float_a.lerp(edit_attribute_float_b, f)
-			
-		elem[layer] = value
-		
+		f = _interp(_gradient_t(mat @ p_local, pa, dir_norm, length), interp_mode)
+		elem[layer] = _lerp_typed(value_a, value_b, f, dt)
+
 	bmesh.update_edit_mesh(mesh, loop_triangles=False, destructive=False)
-	return None  # Success
+	return None
+
+
+def _bmesh_elem_position(elem, domain):
+	if domain == "POINT":
+		return elem.co
+	if domain == "EDGE":
+		return (elem.verts[0].co + elem.verts[1].co) * 0.5
+	if domain == "FACE":
+		return elem.calc_center_median()
+	return None
+
+
+def _apply_gradient_curves(obj, curves, attr, value_a, value_b, pa, dir_norm, length, interp_mode):
+	dt = attr.data_type
+	field = CURVES_FIELD_FOR_TYPE[dt]
+	pos_attr = curves.attributes.get("position")
+	if pos_attr is None:
+		return "Curves object is missing its position attribute."
+	mat = obj.matrix_world
+
+	for i in _curves_target_indices(curves, attr.domain):
+		try:
+			p_local = _curves_position_local(curves, attr.domain, i, pos_attr)
+		except (AttributeError, IndexError):
+			continue
+		f = _interp(_gradient_t(mat @ p_local, pa, dir_norm, length), interp_mode)
+		setattr(attr.data[i], field, _lerp_typed(value_a, value_b, f, dt))
+
+	curves.update_tag()
+	return None
 
 
 
@@ -259,7 +418,11 @@ def apply_gradient_to_attribute(context, settings):
 # ------------------------------------------------------------------------
 	
 def _new_attribute_domain_items(self, context):
-	"""Dynamic domain enum based on the active object's type."""
+	"""Dynamic domain enum based on the active object's type.
+
+	Restricted to the domains the editor itself supports so creating an
+	attribute never produces something invisible in the panel dropdown.
+	"""
 	obj = getattr(context, "active_object", None) if context else None
 	if obj is not None and obj.type == "CURVES":
 		return [
@@ -270,7 +433,6 @@ def _new_attribute_domain_items(self, context):
 		("POINT", "Vertex", "Per-vertex attribute"),
 		("EDGE", "Edge", "Per-edge attribute"),
 		("FACE", "Face", "Per-face attribute"),
-		("CORNER", "Face Corner", "Per-face-corner attribute"),
 	]
 
 
@@ -362,8 +524,10 @@ class MESH_OT_attribute_apply_constant(bpy.types.Operator):
 	@classmethod
 	def poll(cls, context):
 		obj = context.active_object
-		return obj is not None and obj.type == "MESH" and obj.mode == "EDIT"
-	
+		return (obj is not None
+			and obj.type in {"MESH", "CURVES"}
+			and obj.mode == "EDIT")
+
 	def execute(self, context):
 		settings = context.scene.mesh_kit_settings
 		err = apply_constant_to_attribute(context, settings, self.which)
@@ -385,8 +549,10 @@ class MESH_OT_attribute_apply_gradient(bpy.types.Operator):
 	@classmethod
 	def poll(cls, context):
 		obj = context.active_object
-		return obj is not None and obj.type == "MESH" and obj.mode == "EDIT"
-	
+		return (obj is not None
+			and obj.type in {"MESH", "CURVES"}
+			and obj.mode == "EDIT")
+
 	def execute(self, context):
 		settings = context.scene.mesh_kit_settings
 		err = apply_gradient_to_attribute(context, settings)
@@ -416,8 +582,10 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 	@classmethod
 	def poll(cls, context):
 		obj = context.active_object
-		return obj is not None and obj.type == "MESH" and obj.mode == "EDIT"
-	
+		return (obj is not None
+			and obj.type in {"MESH", "CURVES"}
+			and obj.mode == "EDIT")
+
 	def draw(self, context):
 		settings = context.scene.mesh_kit_settings
 		
@@ -432,30 +600,38 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 
 		# Attribute compatibility warning
 		obj = context.active_object
-		mesh = obj.data if obj and obj.type == "MESH" else None
-		attr = mesh.attributes.get(settings.edit_attribute_name) if mesh and settings.edit_attribute_name else None
+		data = obj.data if obj and obj.type in {"MESH", "CURVES"} else None
+		attr = data.attributes.get(settings.edit_attribute_name) if data and settings.edit_attribute_name else None
 		if attr is None:
 			layout.label(text="Select a compatible attribute", icon="INFO")
 			return
-		
+
 		# Data inputs
 		row = layout.row(align=False)
 		colA = row.column(align=True)
 		colB = row.column(align=True)
-		
-		apply_icon="WARNING_LARGE"
+
+		apply_icon = "WARNING_LARGE"
 		if attr.data_type == "FLOAT":
 			colA.prop(settings, "edit_attribute_float_a", text="")
 			colB.prop(settings, "edit_attribute_float_b", text="")
-			apply_icon="NODE_SOCKET_FLOAT"
+			apply_icon = "NODE_SOCKET_FLOAT"
+		elif attr.data_type == "INT":
+			colA.prop(settings, "edit_attribute_int_a", text="")
+			colB.prop(settings, "edit_attribute_int_b", text="")
+			apply_icon = "NODE_SOCKET_INT"
+		elif attr.data_type == "BOOLEAN":
+			colA.prop(settings, "edit_attribute_bool_a", text="A")
+			colB.prop(settings, "edit_attribute_bool_b", text="B")
+			apply_icon = "NODE_SOCKET_BOOLEAN"
 		elif attr.data_type == "FLOAT_VECTOR":
 			colA.prop(settings, "edit_attribute_vector_a", text="")
 			colB.prop(settings, "edit_attribute_vector_b", text="")
-			apply_icon="NODE_SOCKET_VECTOR"
+			apply_icon = "NODE_SOCKET_VECTOR"
 		elif attr.data_type in {"FLOAT_COLOR", "BYTE_COLOR"}:
 			colA.prop(settings, "edit_attribute_color_a", text="")
 			colB.prop(settings, "edit_attribute_color_b", text="")
-			apply_icon="NODE_SOCKET_RGBA"
+			apply_icon = "NODE_SOCKET_RGBA"
 		else:
 			layout.label(text="Unsupported attribute type", icon="ERROR")
 			return
@@ -475,13 +651,17 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 		col.operator("mesh.attribute_apply_gradient", text="Apply Gradient", icon=apply_icon)
 		
 		# Attribute type label
+		is_curves = obj.type == "CURVES"
 		domain_label_map = {
-			"POINT": "Vertex",
+			"POINT": "Point" if is_curves else "Vertex",
 			"EDGE": "Edge",
 			"FACE": "Face",
+			"CURVE": "Curve",
 		}
 		type_label_map = {
 			"FLOAT": "Value",
+			"INT": "Integer",
+			"BOOLEAN": "Boolean",
 			"FLOAT_VECTOR": "Vector",
 			"FLOAT_COLOR": "Color",
 			"BYTE_COLOR": "Color",
