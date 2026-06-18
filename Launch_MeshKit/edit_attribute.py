@@ -56,6 +56,28 @@ CURVES_FIELD_FOR_TYPE = {
 ALL_SUPPORTED_TYPES = set(CURVES_FIELD_FOR_TYPE.keys())
 
 
+# Domains the panel can edit, by object type.
+_VALID_DOMAINS_BY_TYPE = {
+	"MESH": {"POINT", "EDGE", "FACE"},
+	"CURVES": {"POINT", "CURVE"},
+}
+
+
+def has_compatible_attributes(obj):
+	"""True if `obj` exposes at least one attribute the editor can act on."""
+	if obj is None:
+		return False
+	valid_domains = _VALID_DOMAINS_BY_TYPE.get(obj.type)
+	if valid_domains is None:
+		return False
+	for attr in obj.data.attributes:
+		if attr.name.startswith("."):
+			continue
+		if attr.domain in valid_domains and attr.data_type in ALL_SUPPORTED_TYPES:
+			return True
+	return False
+
+
 
 def get_bmesh_domain_seq(bm, domain):
 	"""Return the BMesh element sequence (verts/edges/faces) for a given attribute domain."""
@@ -594,13 +616,23 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 		layout.use_property_decorate = False  # No animation
 		
 		# Attribute selection + create
-		row = layout.row(align=True)
-		row.prop(settings, "edit_attribute_name", text="")
-		row.operator("mesh.attribute_add", text="", icon="ADD")
-
-		# Attribute compatibility warning
 		obj = context.active_object
 		data = obj.data if obj and obj.type in {"MESH", "CURVES"} else None
+		any_compatible = has_compatible_attributes(obj)
+
+		row = layout.row(align=True)
+		if any_compatible:
+			row.prop(settings, "edit_attribute_name", text="")
+		else:
+			# Empty enum would emit an RNA warning every redraw — show a placeholder instead.
+			sub = row.row()
+			sub.enabled = False
+			sub.label(text="No compatible attributes")
+		row.operator("mesh.attribute_add", text="", icon="ADD")
+
+		if not any_compatible:
+			return
+
 		attr = data.attributes.get(settings.edit_attribute_name) if data and settings.edit_attribute_name else None
 		if attr is None:
 			layout.label(text="Select a compatible attribute", icon="INFO")

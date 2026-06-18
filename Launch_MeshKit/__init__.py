@@ -144,9 +144,9 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 		except RuntimeError:
 			pass
 		if len(category) > 0:
-			copy_paste.MESHKIT_PT_copy_paste_geometry.bl_category = category
-			bpy.utils.register_class(copy_paste.MESHKIT_PT_copy_paste_geometry)
-			
+			edit_attribute.MESHKIT_PT_edit_attribute.bl_category = category
+			bpy.utils.register_class(edit_attribute.MESHKIT_PT_edit_attribute)
+
 	editattribute_category: bpy.props.StringProperty(
 		name="Attribute Editor Panel",
 		description="Choose a category for the panel to be placed in",
@@ -187,7 +187,12 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 		########## Copy Paste ##########
 		layout.label(text="Copy Paste", icon="PASTEDOWN") # COPYDOWN PASTEDOWN DUPLICATE
 		layout.prop(self, "copypaste_category", text='Sidebar Tab')
-		
+
+		########## Edit Attribute ##########
+		layout.separator(factor = 2.0)
+		layout.label(text="Edit Attribute", icon="MESH_DATA")
+		layout.prop(self, "editattribute_category", text='Sidebar Tab')
+
 		########## Mesh Align ##########
 		layout.separator(factor = 2.0)
 		layout.label(text="Mesh Align", icon="PIVOT_CURSOR") # PIVOT_CURSOR OBJECT_ORIGIN EMPTY_AXIS ORIENTATION_CURSOR PIVOT_BOUNDBOX MOD_WIREFRAME CUBE LIGHTPROBE_SPHERE
