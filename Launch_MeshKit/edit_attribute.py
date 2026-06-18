@@ -16,6 +16,7 @@ from bpy.props import (
 	FloatProperty,
 	FloatVectorProperty,
 	PointerProperty,
+	StringProperty,
 )
 
 # ------------------------------------------------------------------------
@@ -257,6 +258,88 @@ def apply_gradient_to_attribute(context, settings):
 # Operators
 # ------------------------------------------------------------------------
 	
+def _new_attribute_domain_items(self, context):
+	"""Dynamic domain enum based on the active object's type."""
+	obj = getattr(context, "active_object", None) if context else None
+	if obj is not None and obj.type == "CURVES":
+		return [
+			("POINT", "Point", "Per-point attribute"),
+			("CURVE", "Curve", "Per-curve attribute"),
+		]
+	return [
+		("POINT", "Vertex", "Per-vertex attribute"),
+		("EDGE", "Edge", "Per-edge attribute"),
+		("FACE", "Face", "Per-face attribute"),
+		("CORNER", "Face Corner", "Per-face-corner attribute"),
+	]
+
+
+class MESH_OT_attribute_add(bpy.types.Operator):
+	"""Create a new attribute on the active object's data and select it for editing."""
+	bl_idname = "mesh.attribute_add"
+	bl_label = "New Attribute"
+	bl_options = {"REGISTER", "UNDO"}
+
+	name: StringProperty(
+		name="Name",
+		description="Name of the new attribute",
+		default="Attribute",
+	)
+
+	domain: EnumProperty(
+		name="Domain",
+		description="Attribute domain",
+		items=_new_attribute_domain_items,
+	)
+
+	data_type: EnumProperty(
+		name="Type",
+		description="Attribute data type",
+		items=[
+			("FLOAT", "Float", "Scalar value"),
+			("INT", "Integer", "Integer value"),
+			("BOOLEAN", "Boolean", "Boolean value"),
+			("FLOAT_VECTOR", "Vector", "3D vector"),
+			("FLOAT_COLOR", "Color", "Float color (RGBA)"),
+			("BYTE_COLOR", "Byte Color", "Byte color (RGBA)"),
+		],
+		default="FLOAT",
+	)
+
+	@classmethod
+	def poll(cls, context):
+		obj = context.active_object
+		return (obj is not None
+			and obj.type in {"MESH", "CURVES"}
+			and obj.mode == "EDIT")
+
+	def invoke(self, context, event):
+		return context.window_manager.invoke_props_dialog(self)
+
+	def execute(self, context):
+		obj = context.active_object
+		name = (self.name or "").strip() or "Attribute"
+		try:
+			bpy.ops.geometry.attribute_add(
+				name=name,
+				domain=self.domain,
+				data_type=self.data_type,
+			)
+		except RuntimeError as e:
+			self.report({"ERROR"}, f"Could not create attribute: {e}")
+			return {"CANCELLED"}
+
+		# Auto-select the new attribute (Blender may have suffixed the name to dedupe).
+		new_attr = obj.data.attributes.active
+		if new_attr is not None:
+			try:
+				context.scene.mesh_kit_settings.edit_attribute_name = new_attr.name
+			except TypeError:
+				# Type not yet whitelisted by the panel's enum filter — silently skip.
+				pass
+		return {"FINISHED"}
+
+
 class MESH_OT_attribute_apply_constant(bpy.types.Operator):
 	"""
 	Apply Input A or Input B as a constant value to the selected elements
@@ -342,9 +425,11 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 		layout = self.layout
 		layout.use_property_decorate = False  # No animation
 		
-		# Attribute selection
-		layout.prop(settings, "edit_attribute_name", text="")
-		
+		# Attribute selection + create
+		row = layout.row(align=True)
+		row.prop(settings, "edit_attribute_name", text="")
+		row.operator("mesh.attribute_add", text="", icon="ADD")
+
 		# Attribute compatibility warning
 		obj = context.active_object
 		mesh = obj.data if obj and obj.type == "MESH" else None
@@ -414,6 +499,7 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 # ------------------------------------------------------------------------
 		
 classes = (
+	MESH_OT_attribute_add,
 	MESH_OT_attribute_apply_constant,
 	MESH_OT_attribute_apply_gradient,
 	MESHKIT_PT_edit_attribute,
