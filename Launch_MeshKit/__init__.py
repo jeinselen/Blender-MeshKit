@@ -1,5 +1,6 @@
 import bpy
 import os
+from pathlib import Path
 
 # Local imports
 from . import copy_paste

@@ -191,17 +191,19 @@ def store_island_attributes_node_group():
 	#initialize store_island_attributes nodes
 	#store_island_attributes outputs
 	#output Geometry
-	store_island_attributes.outputs.new('NodeSocketGeometry', "Geometry")
-	store_island_attributes.outputs[0].attribute_domain = 'POINT'
-	
-	
+	# Blender 4.0+ unified node-group sockets under tree.interface (the old
+	# tree.outputs/tree.inputs collections were removed). Requires Blender >= 4.0.
+	geo_out = store_island_attributes.interface.new_socket("Geometry", in_out='OUTPUT', socket_type='NodeSocketGeometry')
+	geo_out.attribute_domain = 'POINT'
+
+
 	#node Group Output
 	group_output = store_island_attributes.nodes.new("NodeGroupOutput")
-	
+
 	#store_island_attributes inputs
 	#input Geometry
-	store_island_attributes.inputs.new('NodeSocketGeometry', "Geometry")
-	store_island_attributes.inputs[0].attribute_domain = 'POINT'
+	geo_in = store_island_attributes.interface.new_socket("Geometry", in_out='INPUT', socket_type='NodeSocketGeometry')
+	geo_in.attribute_domain = 'POINT'
 	
 	
 	#node Group Input
@@ -220,40 +222,27 @@ def store_island_attributes_node_group():
 	accumulate_field = store_island_attributes.nodes.new("GeometryNodeAccumulateField")
 	accumulate_field.data_type = 'FLOAT_VECTOR'
 	accumulate_field.domain = 'POINT'
-	#Value Float
-	accumulate_field.inputs[1].default_value = 1.0
-	#Value Int
-	accumulate_field.inputs[2].default_value = 1
-	
+	# Value is driven by the Position link below; Group ID by Island Index.
+
 	#node Accumulate Field.001
 	accumulate_field_001 = store_island_attributes.nodes.new("GeometryNodeAccumulateField")
 	accumulate_field_001.data_type = 'INT'
 	accumulate_field_001.domain = 'POINT'
-	#Value Vector
-	accumulate_field_001.inputs[0].default_value = (1.0, 1.0, 1.0)
-	#Value Float
-	accumulate_field_001.inputs[1].default_value = 1.0
-	#Value Int
-	accumulate_field_001.inputs[2].default_value = 1
-	
+	# Per-island point count: accumulate a constant 1, grouped by Island Index.
+	accumulate_field_001.inputs["Value"].default_value = 1
+
 	#node Accumulate Field.002
 	accumulate_field_002 = store_island_attributes.nodes.new("GeometryNodeAccumulateField")
 	accumulate_field_002.data_type = 'FLOAT_VECTOR'
 	accumulate_field_002.domain = 'FACE'
-	#Value Float
-	accumulate_field_002.inputs[1].default_value = 1.0
-	#Value Int
-	accumulate_field_002.inputs[2].default_value = 1
-	
+	# Value is driven by the area-weighted position link below.
+
 	#node Accumulate Field.003
 	accumulate_field_003 = store_island_attributes.nodes.new("GeometryNodeAccumulateField")
 	accumulate_field_003.data_type = 'FLOAT'
 	accumulate_field_003.domain = 'FACE'
-	#Value Vector
-	accumulate_field_003.inputs[0].default_value = (1.0, 1.0, 1.0)
-	#Value Int
-	accumulate_field_003.inputs[2].default_value = 1
-	
+	# Value is driven by the Face Area link below.
+
 	#node Vector Math
 	vector_math = store_island_attributes.nodes.new("ShaderNodeVectorMath")
 	vector_math.operation = 'DIVIDE'
@@ -283,53 +272,32 @@ def store_island_attributes_node_group():
 	store_named_attribute.data_type = 'INT'
 	store_named_attribute.domain = 'FACE'
 	#Selection
-	store_named_attribute.inputs[1].default_value = True
+	store_named_attribute.inputs["Selection"].default_value = True
 	#Name
-	store_named_attribute.inputs[2].default_value = "island_index"
-	#Value_Vector
-	store_named_attribute.inputs[3].default_value = (0.0, 0.0, 0.0)
-	#Value_Float
-	store_named_attribute.inputs[4].default_value = 0.0
-	#Value_Color
-	store_named_attribute.inputs[5].default_value = (0.0, 0.0, 0.0, 0.0)
-	#Value_Bool
-	store_named_attribute.inputs[6].default_value = False
-	
+	store_named_attribute.inputs["Name"].default_value = "island_index"
+	# Value (Int) is driven by the Island Index link below.
+
 	#node Store Named Attribute.002
 	store_named_attribute_002 = store_island_attributes.nodes.new("GeometryNodeStoreNamedAttribute")
 	store_named_attribute_002.data_type = 'FLOAT_VECTOR'
 	store_named_attribute_002.domain = 'FACE'
 	#Selection
-	store_named_attribute_002.inputs[1].default_value = True
+	store_named_attribute_002.inputs["Selection"].default_value = True
 	#Name
-	store_named_attribute_002.inputs[2].default_value = "island_mean"
-	#Value_Float
-	store_named_attribute_002.inputs[4].default_value = 0.0
-	#Value_Color
-	store_named_attribute_002.inputs[5].default_value = (0.0, 0.0, 0.0, 0.0)
-	#Value_Bool
-	store_named_attribute_002.inputs[6].default_value = False
-	#Value_Int
-	store_named_attribute_002.inputs[7].default_value = 0
-	
+	store_named_attribute_002.inputs["Name"].default_value = "island_mean"
+	# Value (Vector) is driven by the Vector Math link below.
+
 	#node Store Named Attribute.003
 	store_named_attribute_003 = store_island_attributes.nodes.new("GeometryNodeStoreNamedAttribute")
 	store_named_attribute_003.data_type = 'FLOAT_VECTOR'
 	store_named_attribute_003.domain = 'FACE'
 	#Selection
-	store_named_attribute_003.inputs[1].default_value = True
+	store_named_attribute_003.inputs["Selection"].default_value = True
 	#Name
-	store_named_attribute_003.inputs[2].default_value = "island_weighted"
-	#Value_Float
-	store_named_attribute_003.inputs[4].default_value = 0.0
-	#Value_Color
-	store_named_attribute_003.inputs[5].default_value = (0.0, 0.0, 0.0, 0.0)
-	#Value_Bool
-	store_named_attribute_003.inputs[6].default_value = False
-	#Value_Int
-	store_named_attribute_003.inputs[7].default_value = 0
-	
-	
+	store_named_attribute_003.inputs["Name"].default_value = "island_weighted"
+	# Value (Vector) is driven by the Vector Math link below.
+
+
 	#Set locations
 	group_output.location = (0.0, 0.0)
 	group_input.location = (-720.0, 0.0)
@@ -368,21 +336,21 @@ def store_island_attributes_node_group():
 	#store_named_attribute_003.Geometry -> group_output.Geometry
 	store_island_attributes.links.new(store_named_attribute_003.outputs[0], group_output.inputs[0])
 	#face_area.Area -> accumulate_field_003.Value
-	store_island_attributes.links.new(face_area.outputs[0], accumulate_field_003.inputs[1])
+	store_island_attributes.links.new(face_area.outputs[0], accumulate_field_003.inputs["Value"])
 	#vector_math_001.Vector -> accumulate_field_002.Value
-	store_island_attributes.links.new(vector_math_001.outputs[0], accumulate_field_002.inputs[0])
+	store_island_attributes.links.new(vector_math_001.outputs[0], accumulate_field_002.inputs["Value"])
 	#accumulate_field_002.Total -> vector_math_002.Vector
-	store_island_attributes.links.new(accumulate_field_002.outputs[6], vector_math_002.inputs[0])
+	store_island_attributes.links.new(accumulate_field_002.outputs["Total"], vector_math_002.inputs[0])
 	#accumulate_field_003.Total -> vector_math_002.Vector
-	store_island_attributes.links.new(accumulate_field_003.outputs[7], vector_math_002.inputs[1])
+	store_island_attributes.links.new(accumulate_field_003.outputs["Total"], vector_math_002.inputs[1])
 	#accumulate_field.Total -> vector_math.Vector
-	store_island_attributes.links.new(accumulate_field.outputs[6], vector_math.inputs[0])
+	store_island_attributes.links.new(accumulate_field.outputs["Total"], vector_math.inputs[0])
 	#accumulate_field_001.Total -> vector_math.Vector
-	store_island_attributes.links.new(accumulate_field_001.outputs[8], vector_math.inputs[1])
+	store_island_attributes.links.new(accumulate_field_001.outputs["Total"], vector_math.inputs[1])
 	#face_area.Area -> vector_math_001.Scale
 	store_island_attributes.links.new(face_area.outputs[0], vector_math_001.inputs[3])
 	#position.Position -> accumulate_field.Value
-	store_island_attributes.links.new(position.outputs[0], accumulate_field.inputs[0])
+	store_island_attributes.links.new(position.outputs[0], accumulate_field.inputs["Value"])
 	#group_input.Geometry -> store_named_attribute.Geometry
 	store_island_attributes.links.new(group_input.outputs[0], store_named_attribute.inputs[0])
 	#store_named_attribute.Geometry -> store_named_attribute_002.Geometry
@@ -390,19 +358,19 @@ def store_island_attributes_node_group():
 	#store_named_attribute_002.Geometry -> store_named_attribute_003.Geometry
 	store_island_attributes.links.new(store_named_attribute_002.outputs[0], store_named_attribute_003.inputs[0])
 	#mesh_island.Island Index -> store_named_attribute.Value
-	store_island_attributes.links.new(mesh_island.outputs[0], store_named_attribute.inputs[7])
+	store_island_attributes.links.new(mesh_island.outputs["Island Index"], store_named_attribute.inputs["Value"])
 	#vector_math.Vector -> store_named_attribute_002.Value
-	store_island_attributes.links.new(vector_math.outputs[0], store_named_attribute_002.inputs[3])
+	store_island_attributes.links.new(vector_math.outputs[0], store_named_attribute_002.inputs["Value"])
 	#vector_math_002.Vector -> store_named_attribute_003.Value
-	store_island_attributes.links.new(vector_math_002.outputs[0], store_named_attribute_003.inputs[3])
+	store_island_attributes.links.new(vector_math_002.outputs[0], store_named_attribute_003.inputs["Value"])
 	#mesh_island.Island Index -> accumulate_field.Group ID
-	store_island_attributes.links.new(mesh_island.outputs[0], accumulate_field.inputs[3])
+	store_island_attributes.links.new(mesh_island.outputs["Island Index"], accumulate_field.inputs["Group ID"])
 	#mesh_island.Island Index -> accumulate_field_001.Group ID
-	store_island_attributes.links.new(mesh_island.outputs[0], accumulate_field_001.inputs[3])
+	store_island_attributes.links.new(mesh_island.outputs["Island Index"], accumulate_field_001.inputs["Group ID"])
 	#mesh_island.Island Index -> accumulate_field_002.Group ID
-	store_island_attributes.links.new(mesh_island.outputs[0], accumulate_field_002.inputs[3])
+	store_island_attributes.links.new(mesh_island.outputs["Island Index"], accumulate_field_002.inputs["Group ID"])
 	#mesh_island.Island Index -> accumulate_field_003.Group ID
-	store_island_attributes.links.new(mesh_island.outputs[0], accumulate_field_003.inputs[3])
+	store_island_attributes.links.new(mesh_island.outputs["Island Index"], accumulate_field_003.inputs["Group ID"])
 	#position.Position -> vector_math_001.Vector
 	store_island_attributes.links.new(position.outputs[0], vector_math_001.inputs[0])
 	return store_island_attributes
