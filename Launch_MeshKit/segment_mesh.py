@@ -4,6 +4,8 @@ from mathutils import Vector
 from mathutils import Matrix
 from bpy.app.handlers import persistent
 
+from . import utility_panel
+
 ###########################################################################
 # Main class
 
@@ -451,7 +453,8 @@ class MESHKIT_PT_segment_mesh(bpy.types.Panel):
 	bl_options = {'DEFAULT_CLOSED'}
 	bl_label = "Segment Mesh"
 	bl_idname = "MESHKIT_PT_segment_mesh"
-	
+	category_preference = "segmentmesh_category"
+
 	@classmethod
 	def poll(cls, context):
 		return True
@@ -505,18 +508,24 @@ class MESHKIT_PT_segment_mesh(bpy.types.Panel):
 
 classes = (
 	MeshKit_Segment_Mesh,
-	MESHKIT_PT_segment_mesh,
 )
+
+# Registered from the tab category set in the extension preferences
+panels = [MESHKIT_PT_segment_mesh]
 
 
 
 def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
+	# Register panels
+	utility_panel.register_panels(panels)
 
 
 
 def unregister():
+	# Unregister panels
+	utility_panel.unregister_panels(panels)
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
 

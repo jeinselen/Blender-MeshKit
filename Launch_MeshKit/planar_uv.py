@@ -2,6 +2,8 @@ import bpy
 import bmesh
 from mathutils import Vector
 
+from . import utility_panel
+
 ###########################################################################
 # Main class
 
@@ -163,7 +165,8 @@ class MESHKIT_PT_planar_uv(bpy.types.Panel):
 	bl_category = "Launch"
 	bl_order = 36
 	bl_options = {'DEFAULT_CLOSED'}
-	
+	category_preference = "planaruv_category"
+
 	@classmethod
 	def poll(cls, context):
 		return True
@@ -203,7 +206,8 @@ class MESHKIT_PT_planar_uv_advanced(bpy.types.Panel):
 	bl_region_type = "UI"
 	bl_parent_id = "MESHKIT_PT_planar_uv"
 	bl_options = {'DEFAULT_CLOSED'}
-	
+	category_preference = "planaruv_category"
+
 	@classmethod
 	def poll(cls, context):
 		return True
@@ -240,19 +244,27 @@ class MESHKIT_PT_planar_uv_advanced(bpy.types.Panel):
 classes = (
 	MeshKit_UV_Planar_Projection,
 	MeshKit_UV_Load_Selection,
+)
+
+# Registered from the tab category set in the extension preferences, parent panel first
+panels = [
 	MESHKIT_PT_planar_uv,
 	MESHKIT_PT_planar_uv_advanced,
-)
+]
 
 
 
 def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
+	# Register panels
+	utility_panel.register_panels(panels)
 
 
 
 def unregister():
+	# Unregister panels
+	utility_panel.unregister_panels(panels)
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
 

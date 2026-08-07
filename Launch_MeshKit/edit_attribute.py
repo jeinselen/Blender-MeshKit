@@ -19,6 +19,8 @@ from bpy.props import (
 	StringProperty,
 )
 
+from . import utility_panel
+
 # ------------------------------------------------------------------------
 # Helper mappings and functions
 # ------------------------------------------------------------------------
@@ -695,6 +697,7 @@ class MESHKIT_PT_edit_attribute(bpy.types.Panel):
 	bl_category = 'Launch'
 	bl_options = {'DEFAULT_CLOSED'}
 	bl_order = 35
+	category_preference = "editattribute_category"
 
 	@classmethod
 	def poll(cls, context):
@@ -820,14 +823,20 @@ classes = (
 	MESH_OT_convert_legacy_curve,
 	MESH_OT_attribute_apply_constant,
 	MESH_OT_attribute_apply_gradient,
-	MESHKIT_PT_edit_attribute,
 )
+
+# Registered from the tab category set in the extension preferences
+panels = [MESHKIT_PT_edit_attribute]
 
 def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
+	# Register panels
+	utility_panel.register_panels(panels)
 
 def unregister():
+	# Unregister panels
+	utility_panel.unregister_panels(panels)
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
 

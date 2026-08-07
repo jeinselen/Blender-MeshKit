@@ -3,6 +3,8 @@ from bpy.app.handlers import persistent
 import mathutils
 #import bmesh # Only used to get active vertex, the rest of the operations act on the mesh data directly
 
+from . import utility_panel
+
 ###########################################################################
 # Main class
 
@@ -79,7 +81,8 @@ class MESHKIT_PT_radial_offset(bpy.types.Panel):
 	bl_options = {'DEFAULT_CLOSED'}
 	bl_label = "Radial Offset"
 	bl_idname = "MESHKIT_PT_radial_offset"
-	
+	category_preference = "radialoffset_category"
+
 	@classmethod
 	def poll(cls, context):
 		return True
@@ -121,8 +124,10 @@ class MESHKIT_PT_radial_offset(bpy.types.Panel):
 
 classes = (
 	MeshKit_Radial_Offset,
-	MESHKIT_PT_radial_offset,
 )
+
+# Registered from the tab category set in the extension preferences
+panels = [MESHKIT_PT_radial_offset]
 
 #keymaps = []
 
@@ -131,7 +136,9 @@ classes = (
 def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
-	
+	# Register panels
+	utility_panel.register_panels(panels)
+
 #	wm = bpy.context.window_manager
 #	kc = wm.keyconfigs.addon
 #	if kc:
@@ -145,7 +152,10 @@ def unregister():
 #	for km, kmi in keymaps:
 #		km.keymap_items.remove(kmi)
 #	keymaps.clear()
-	
+
+	# Unregister panels
+	utility_panel.unregister_panels(panels)
+
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
 

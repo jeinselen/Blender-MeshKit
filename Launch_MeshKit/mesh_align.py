@@ -1,5 +1,7 @@
 import bpy
 
+from . import utility_panel
+
 
 # ---- Helpers -----------------------------------------------------------------
 
@@ -141,7 +143,8 @@ class MESHKIT_PT_mesh_align_origin(bpy.types.Panel):
 	bl_category = "Launch"
 	bl_order = 34
 	bl_options = {'DEFAULT_CLOSED'}
-	
+	category_preference = "meshalign_category"
+
 	@classmethod
 	def poll(cls, context):
 		obj = context.active_object
@@ -168,16 +171,22 @@ class MESHKIT_PT_mesh_align_origin(bpy.types.Panel):
 
 classes = (
 	OBJECT_OT_mesh_align_origin,
-	MESHKIT_PT_mesh_align_origin,
 )
+
+# Registered from the tab category set in the extension preferences
+panels = [MESHKIT_PT_mesh_align_origin]
 
 
 def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
+	# Register panels
+	utility_panel.register_panels(panels)
 
 
 def unregister():
+	# Unregister panels
+	utility_panel.unregister_panels(panels)
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
 

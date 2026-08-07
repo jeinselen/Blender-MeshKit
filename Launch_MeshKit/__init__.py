@@ -10,7 +10,8 @@ from . import point_array
 from . import radial_offset
 from . import segment_mesh
 from . import edit_attribute
-from .vertex_quantize import MeshKit_Vertex_Quantize, MeshKit_UV_Quantize, MESHKIT_PT_vertex_quantize, MESHKIT_PT_uv_quantize
+from . import utility_panel
+from . import vertex_quantize
 
 
 
@@ -21,157 +22,111 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 	bl_idname = __package__
 	
 	########## Copy Paste ##########
-	
+
 	def update_copypaste_category(self, context):
-		category = bpy.context.preferences.addons[__package__].preferences.copypaste_category
-		try:
-			bpy.utils.unregister_class(copy_paste.MESHKIT_PT_copy_paste_geometry)
-		except RuntimeError:
-			pass
-		if len(category) > 0:
-			copy_paste.MESHKIT_PT_copy_paste_geometry.bl_category = category
-			bpy.utils.register_class(copy_paste.MESHKIT_PT_copy_paste_geometry)
-	
+		utility_panel.register_panels(copy_paste.panels)
+
 	copypaste_category: bpy.props.StringProperty(
-		name="Copy Paste Panel",
-		description="Choose a category for the panel to be placed in",
+		name="3D View",
+		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_copypaste_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-	
+
 	########## Mesh Align ##########
-	
+
 	def update_meshalign_category(self, context):
-		category = bpy.context.preferences.addons[__package__].preferences.meshalign_category
-		try:
-			bpy.utils.unregister_class(MESHKIT_PT_mesh_align_origin)
-		except RuntimeError:
-			pass
-		if len(category) > 0:
-			MESHKIT_PT_mesh_align_origin.bl_category = category
-			bpy.utils.register_class(MESHKIT_PT_mesh_align_origin)
-	
+		utility_panel.register_panels(mesh_align.panels)
+
 	meshalign_category: bpy.props.StringProperty(
-		name="Mesh Align Panel",
-		description="Choose a category for the panel to be placed in",
+		name="3D View",
+		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_meshalign_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-	
+
 	########## Planar UV ##########
-	
+
 	def update_planaruv_category(self, context):
-		category = bpy.context.preferences.addons[__package__].preferences.planaruv_category
-		try:
-			bpy.utils.unregister_class(planar_uv.MESHKIT_PT_planar_uv_advanced)
-			bpy.utils.unregister_class(planar_uv.MESHKIT_PT_planar_uv)
-		except RuntimeError:
-			pass
-		if len(category) > 0:
-			planar_uv.MESHKIT_PT_planar_uv.bl_category = category
-			bpy.utils.register_class(planar_uv.MESHKIT_PT_planar_uv)
-			bpy.utils.register_class(planar_uv.MESHKIT_PT_planar_uv_advanced)
-	
+		# Includes the Advanced subpanel, which must follow its parent
+		utility_panel.register_panels(planar_uv.panels)
+
 	planaruv_category: bpy.props.StringProperty(
-		name="Planar UV Panel",
-		description="Choose a category for the panel to be placed in",
+		name="3D View",
+		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_planaruv_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-	
+
 	########## Point Array ##########
-	
+
 	def update_pointarray_category(self, context):
-		category = bpy.context.preferences.addons[__package__].preferences.pointarray_category
-		try:
-			bpy.utils.unregister_class(point_array.MESHKIT_PT_point_array)
-		except RuntimeError:
-			pass
-		if len(category) > 0:
-			point_array.MESHKIT_PT_point_array.bl_category = category
-			bpy.utils.register_class(point_array.MESHKIT_PT_point_array)
-	
+		utility_panel.register_panels(point_array.panels)
+
 	pointarray_category: bpy.props.StringProperty(
-		name="Point Array Panel",
-		description="Choose a category for the panel to be placed in",
+		name="3D View",
+		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_pointarray_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-	
+
 	########## Radial Offset ##########
-	
+
 	def update_radialoffset_category(self, context):
-		category = bpy.context.preferences.addons[__package__].preferences.radialoffset_category
-		try:
-			bpy.utils.unregister_class(radial_offset.MESHKIT_PT_radial_offset)
-		except RuntimeError:
-			pass
-		if len(category) > 0:
-			radial_offset.MESHKIT_PT_radial_offset.bl_category = category
-			bpy.utils.register_class(radial_offset.MESHKIT_PT_radial_offset)
-	
+		utility_panel.register_panels(radial_offset.panels)
+
 	radialoffset_category: bpy.props.StringProperty(
-		name="Radial Offset Panel",
-		description="Choose a category for the panel to be placed in",
+		name="3D View",
+		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_radialoffset_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-	
+
 	########## Segment Mesh ##########
-	
+
 	def update_segmentmesh_category(self, context):
-		category = bpy.context.preferences.addons[__package__].preferences.segmentmesh_category
-		try:
-			bpy.utils.unregister_class(segment_mesh.MESHKIT_PT_segment_mesh)
-		except RuntimeError:
-			pass
-		if len(category) > 0:
-			segment_mesh.MESHKIT_PT_segment_mesh.bl_category = category
-			bpy.utils.register_class(segment_mesh.MESHKIT_PT_segment_mesh)
-	
+		utility_panel.register_panels(segment_mesh.panels)
+
 	segmentmesh_category: bpy.props.StringProperty(
-		name="Segment Mesh Panel",
-		description="Choose a category for the panel to be placed in",
+		name="3D View",
+		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_segmentmesh_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-	
+
 	########## Edit Attribute ##########
-	
+
 	def update_editattribute_category(self, context):
-		category = bpy.context.preferences.addons[__package__].preferences.editattribute_category
-		try:
-			bpy.utils.unregister_class(edit_attribute.MESHKIT_PT_edit_attribute)
-		except RuntimeError:
-			pass
-		if len(category) > 0:
-			edit_attribute.MESHKIT_PT_edit_attribute.bl_category = category
-			bpy.utils.register_class(edit_attribute.MESHKIT_PT_edit_attribute)
+		utility_panel.register_panels(edit_attribute.panels)
 
 	editattribute_category: bpy.props.StringProperty(
-		name="Attribute Editor Panel",
-		description="Choose a category for the panel to be placed in",
+		name="3D View",
+		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_editattribute_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-	
+
 	########## Vertex Quantize ##########
-	
+
 	def update_vertexquantise_category(self, context):
-		category = bpy.context.preferences.addons[__package__].preferences.vertexquantize_category
-		try:
-			bpy.utils.unregister_class(MESHKIT_PT_vertex_quantize)
-		except RuntimeError:
-			pass
-		if len(category) > 0:
-			MESHKIT_PT_vertex_quantize.bl_category = category
-			bpy.utils.register_class(MESHKIT_PT_vertex_quantize)
-	
+		utility_panel.register_panel(vertex_quantize.MESHKIT_PT_vertex_quantize)
+
+	def update_vertexquantiseuv_category(self, context):
+		utility_panel.register_panel(vertex_quantize.MESHKIT_PT_uv_quantize)
+
+	# 3D view tab
 	vertexquantize_category: bpy.props.StringProperty(
-		name="Vertex Quantize Panel",
-		description="Choose a category for the panel to be placed in",
+		name="3D View",
+		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_vertexquantise_category)
+		# Consider adding search_options=(list of currently available tabs) for easier operation
+	# UV editor tab
+	vertexquantizeuv_category: bpy.props.StringProperty(
+		name="UV Editor",
+		description="Choose a UV editor tab category for the panel to be placed in, or leave empty to hide the panel",
+		default="Tool",
+		update=update_vertexquantiseuv_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
 	
 	
@@ -186,43 +141,53 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 #		layout.use_property_split = True
 		
 		########## Copy Paste ##########
-		layout.label(text="Copy Paste", icon="PASTEDOWN") # COPYDOWN PASTEDOWN DUPLICATE
-		layout.prop(self, "copypaste_category", text='Sidebar Tab')
+		titlegrid = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
+		titlegrid.label(text="Copy Paste", icon="PASTEDOWN") # COPYDOWN PASTEDOWN DUPLICATE
+		titlegrid.prop(self, "copypaste_category", text="", icon="VIEW3D")
 
 		########## Edit Attribute ##########
 		layout.separator(factor = 2.0)
-		layout.label(text="Edit Attribute", icon="MESH_DATA")
-		layout.prop(self, "editattribute_category", text='Sidebar Tab')
+		titlegrid = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
+		titlegrid.label(text="Edit Attribute", icon="MESH_DATA")
+		titlegrid.prop(self, "editattribute_category", text="", icon="VIEW3D")
 
 		########## Mesh Align ##########
 		layout.separator(factor = 2.0)
-		layout.label(text="Mesh Align", icon="PIVOT_CURSOR") # PIVOT_CURSOR OBJECT_ORIGIN EMPTY_AXIS ORIENTATION_CURSOR PIVOT_BOUNDBOX MOD_WIREFRAME CUBE LIGHTPROBE_SPHERE
-		layout.prop(self, "meshalign_category", text='Sidebar Tab')
+		titlegrid = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
+		titlegrid.label(text="Mesh Align", icon="PIVOT_CURSOR") # PIVOT_CURSOR OBJECT_ORIGIN EMPTY_AXIS ORIENTATION_CURSOR PIVOT_BOUNDBOX MOD_WIREFRAME CUBE LIGHTPROBE_SPHERE
+		titlegrid.prop(self, "meshalign_category", text="", icon="VIEW3D")
 		
 		########## Planar UV ##########
 		layout.separator(factor = 2.0)
-		layout.label(text="Planar UV", icon="MOD_UVPROJECT") # UV UV_DATA GROUP_UVS MOD_UVPROJECT FACE_MAPS VIEW_ORTHO
-		layout.prop(self, "planaruv_category", text='Sidebar Tab')
+		titlegrid = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
+		titlegrid.label(text="Planar UV", icon="MOD_UVPROJECT") # UV UV_DATA GROUP_UVS MOD_UVPROJECT FACE_MAPS VIEW_ORTHO
+		titlegrid.prop(self, "planaruv_category", text="", icon="VIEW3D")
 		
 		########## Point Array ##########
 		layout.separator(factor = 2.0)
-		layout.label(text="Point Array", icon="GROUP_VERTEX") # GROUP_VERTEX SNAP_VERTEX OUTLINER_OB_POINTCLOUD OUTLINER_DATA_POINTCLOUD POINTCLOUD_DATA POINTCLOUD_POINT
-		layout.prop(self, "pointarray_category", text='Sidebar Tab')
+		titlegrid = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
+		titlegrid.label(text="Point Array", icon="GROUP_VERTEX") # GROUP_VERTEX SNAP_VERTEX OUTLINER_OB_POINTCLOUD OUTLINER_DATA_POINTCLOUD POINTCLOUD_DATA POINTCLOUD_POINT
+		titlegrid.prop(self, "pointarray_category", text="", icon="VIEW3D")
 		
 		########## Radial Offset ##########
 		layout.separator(factor = 2.0)
-		layout.label(text="Radial Offset", icon="SPHERE") # SPHERE PARTICLE_PATH PROP_ON PROP_CON
-		layout.prop(self, "radialoffset_category", text='Sidebar Tab')
+		titlegrid = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
+		titlegrid.label(text="Radial Offset", icon="SPHERE") # SPHERE PARTICLE_PATH PROP_ON PROP_CON
+		titlegrid.prop(self, "radialoffset_category", text="", icon="VIEW3D")
 		
 		########## Segment Mesh ##########
 		layout.separator(factor = 2.0)
-		layout.label(text="Segment Mesh", icon="MESH_GRID") # MESH_GRID GRID VIEW_ORTHO
-		layout.prop(self, "segmentmesh_category", text='Sidebar Tab')
+		titlegrid = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
+		titlegrid.label(text="Segment Mesh", icon="MESH_GRID") # MESH_GRID GRID VIEW_ORTHO
+		titlegrid.prop(self, "segmentmesh_category", text="", icon="VIEW3D")
 		
 		########## Vertex Quantize ##########
 		layout.separator(factor = 2.0)
-		layout.label(text="Vertex Quantize", icon="UV_VERTEXSEL") # UV_VERTEXSEL NORMALS_VERTEX NORMALS_VERTEX_FACE SNAP_VERTEX
-		layout.prop(self, "vertexquantize_category", text='Sidebar Tab')
+		titlegrid = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
+		titlegrid.label(text="Vertex Quantize", icon="UV_VERTEXSEL") # UV_VERTEXSEL NORMALS_VERTEX NORMALS_VERTEX_FACE SNAP_VERTEX
+		row = titlegrid.row()
+		row.prop(self, "vertexquantize_category", text="", icon="VIEW3D")
+		row.prop(self, "vertexquantizeuv_category", text="", icon="UV") # UV MOD_UVPROJECT UV_DATA GROUP_UVS
 
 
 
@@ -908,14 +873,10 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 ###########################################################################
 # Addon registration functions
 # •Define classes being registered
-# •Define keymap array
 # •Registration function
 # •Unregistration function
 
-classes = (MeshKitPreferences, MeshKitSettings,
-	MeshKit_Vertex_Quantize, MeshKit_UV_Quantize, MESHKIT_PT_vertex_quantize, MESHKIT_PT_uv_quantize)
-
-keymaps = []
+classes = (MeshKitPreferences, MeshKitSettings)
 
 
 
@@ -923,12 +884,11 @@ def register():
 	# Register classes
 	for cls in classes:
 		bpy.utils.register_class(cls)
-	
+
 	# Add extension settings reference
 	bpy.types.Scene.mesh_kit_settings = bpy.props.PointerProperty(type=MeshKitSettings)
-	
+
 	########## Register Components ##########
-	
 	copy_paste.register()
 	planar_uv.register()
 	point_array.register()
@@ -936,36 +896,13 @@ def register():
 	segment_mesh.register()
 	edit_attribute.register()
 	mesh_align.register()
-	
-	# Add keymaps for project versioning and viewport shading
-	wm = bpy.context.window_manager
-	kc = wm.keyconfigs.addon
-	if kc:
-		
-		########## Vertex Quantize ##########
-		
-		# Quantize in 3D View
-		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
-		kmi = km.keymap_items.new(MeshKit_Vertex_Quantize.bl_idname, type='Q', value='PRESS', shift=True)
-		keymaps.append((km, kmi))
-		
-		# Quantize in UV Editor
-		km = wm.keyconfigs.addon.keymaps.new(name='UV Editor', space_type='IMAGE_EDITOR')
-		kmi = km.keymap_items.new(MeshKit_UV_Quantize.bl_idname, type='Q', value='PRESS', shift=True)
-		keymaps.append((km, kmi))
+	vertex_quantize.register()
 
 
 
 def unregister():
-	# Remove keymaps
-	for km, kmi in keymaps:
-		km.keymap_items.remove(kmi)
-	keymaps.clear()
-	
-	# Remove extension settings reference
-	del bpy.types.Scene.mesh_kit_settings
-	
 	########## Unregister Components ##########
+	vertex_quantize.unregister()
 	edit_attribute.unregister()
 	mesh_align.unregister()
 	segment_mesh.unregister()
@@ -973,6 +910,9 @@ def unregister():
 	point_array.unregister()
 	planar_uv.unregister()
 	copy_paste.unregister()
+
+	# Remove extension settings reference
+	del bpy.types.Scene.mesh_kit_settings
 	
 	# Deregister classes
 	for cls in reversed(classes):
@@ -982,3 +922,4 @@ def unregister():
 
 if __package__ == "__main__":
 	register()
+	

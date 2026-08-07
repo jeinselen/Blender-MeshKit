@@ -1,5 +1,7 @@
 import bpy
 
+from . import utility_panel
+
 ###########################################################################
 # Main class
 
@@ -124,7 +126,8 @@ class MESHKIT_PT_vertex_quantize(bpy.types.Panel):
 	bl_options = {'DEFAULT_CLOSED'}
 	bl_label = "Vertex Quantize"
 	bl_idname = "MESHKIT_PT_vertex_quantize"
-	
+	category_preference = "vertexquantize_category"
+
 	@classmethod
 	def poll(cls, context):
 		if context.area.ui_type == 'VIEW_3D' and context.active_object and context.active_object.type == 'MESH':
@@ -165,7 +168,8 @@ class MESHKIT_PT_uv_quantize(bpy.types.Panel):
 	bl_options = {'DEFAULT_CLOSED'}
 	bl_label = "UV Quantize"
 	bl_idname = "MESHKIT_PT_uv_quantize"
-	
+	category_preference = "vertexquantizeuv_category"
+
 	@classmethod
 	def poll(cls, context):
 		if context.area.ui_type == 'UV' and context.active_object and context.active_object.type == 'MESH' and context.object.data.uv_layers:
@@ -206,3 +210,59 @@ class MESHKIT_PT_uv_quantize(bpy.types.Panel):
 			layout.operator(MeshKit_UV_Quantize.bl_idname)
 		except Exception as exc:
 			print(str(exc) + " | Error in Mesh Kit UV Quantize panel")
+
+
+
+###########################################################################
+# Registration
+
+classes = [
+	MeshKit_Vertex_Quantize,
+	MeshKit_UV_Quantize,
+]
+
+# Registered from the tab categories set in the extension preferences
+panels = [
+	MESHKIT_PT_vertex_quantize,
+	MESHKIT_PT_uv_quantize,
+]
+
+keymaps = []
+
+
+
+def register():
+	for cls in classes:
+		bpy.utils.register_class(cls)
+
+	utility_panel.register_panels(panels)
+
+	wm = bpy.context.window_manager
+	kc = wm.keyconfigs.addon
+	if kc:
+		# Quantize in 3D View
+		km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
+		kmi = km.keymap_items.new(MeshKit_Vertex_Quantize.bl_idname, type='Q', value='PRESS', shift=True)
+		keymaps.append((km, kmi))
+
+		# Quantize in UV Editor
+		km = wm.keyconfigs.addon.keymaps.new(name='UV Editor', space_type='IMAGE_EDITOR')
+		kmi = km.keymap_items.new(MeshKit_UV_Quantize.bl_idname, type='Q', value='PRESS', shift=True)
+		keymaps.append((km, kmi))
+
+
+
+def unregister():
+	for km, kmi in keymaps:
+		km.keymap_items.remove(kmi)
+	keymaps.clear()
+
+	utility_panel.unregister_panels(panels)
+
+	for cls in reversed(classes):
+		bpy.utils.unregister_class(cls)
+
+
+
+if __name__ == "__main__":
+	register()

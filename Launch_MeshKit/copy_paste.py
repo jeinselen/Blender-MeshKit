@@ -1,5 +1,7 @@
 import bpy
 
+from . import utility_panel
+
 ###########################################################################
 # Main classes
 
@@ -272,7 +274,8 @@ class MESHKIT_PT_copy_paste_geometry(bpy.types.Panel):
 	bl_category = "Launch"
 	bl_order = 39
 	bl_options = {'DEFAULT_CLOSED'}
-	
+	category_preference = "copypaste_category"
+
 	@classmethod
 	def poll(cls, context):
 		return True
@@ -318,8 +321,10 @@ class MESHKIT_PT_copy_paste_geometry(bpy.types.Panel):
 classes = (
 	MeshKit_Copy,
 	MeshKit_Paste,
-	MESHKIT_PT_copy_paste_geometry,
 )
+
+# Registered from the tab category set in the extension preferences
+panels = [MESHKIT_PT_copy_paste_geometry]
 
 keymaps = []
 
@@ -328,6 +333,9 @@ keymaps = []
 def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
+
+	# Register panels
+	utility_panel.register_panels(panels)
 
 	wm = bpy.context.window_manager
 	kc = wm.keyconfigs.addon
@@ -372,6 +380,9 @@ def unregister():
 	for km, kmi in keymaps:
 		km.keymap_items.remove(kmi)
 	keymaps.clear()
+
+	# Unregister panels
+	utility_panel.unregister_panels(panels)
 
 	for cls in reversed(classes):
 		bpy.utils.unregister_class(cls)
