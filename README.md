@@ -10,6 +10,14 @@
 
     ![Screenshot-CopyPaste](images/Screenshot-CopyPaste.png)
 
+- ### Edit Attribute
+
+  - Creates and edits mesh or curves attributes in Edit Mode, applying constant values or gradients (with linear, smooth, or smoother interpolation) across the selection, plus a helper to convert legacy curves to the Curves object type
+
+- ### Mesh Align
+
+  - Shifts an object's geometry relative to its origin, aligning the bounding box to the negative, centre, or positive side of each axis independently
+
 - ### Planar UV
 
   - Projects UV coordinates from a specified axis using numerical scale inputs for repeatability
@@ -59,10 +67,8 @@
 
 ## Installation via Download:
 
-- Download the .zip file for a specific kit
+- Download the extension .zip file
 - Drag-and-drop the file into Blender
-
-
 
 These latter two methods will not connect to the centralised repository here on GitHub and updates will not be automatically available. If you don't need easy updates, don't want GitHub servers to be pinged when you start up Blender, or would just like to try some extensions without adding yet another repository to your Blender settings, this is the option for you.
 

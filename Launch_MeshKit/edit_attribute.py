@@ -1,13 +1,3 @@
-bl_info = {
-	"name": "Edit Attribute Values in Edit Mode",
-	"author": "ChatGPT",
-	"version": (1, 0, 0),
-	"blender": (5, 0, 0),
-	"location": "View3D > Sidebar > Attributes",
-	"description": "Set mesh attribute values on selected elements and apply gradients in Edit Mode.",
-	"category": "Mesh",
-}
-
 import bpy
 import bmesh
 from mathutils import Vector

@@ -920,6 +920,6 @@ def unregister():
 
 
 
-if __package__ == "__main__":
+if __name__ == "__main__":
 	register()
 	
