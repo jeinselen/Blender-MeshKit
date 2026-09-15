@@ -32,6 +32,22 @@ def subdivide_count(initial, add, mult=4):
 		point_start *= mult
 	return int(point_count)
 
+def estimate_qr(text, error):
+	# Fast QR size estimate for the UI: finds the smallest version using a byte-mode upper bound (no error correction encoding)
+	# Returns (version, module_size) or None if it can't be determined
+	try:
+		from segno import consts
+		e = {'L': consts.ERROR_LEVEL_L, 'M': consts.ERROR_LEVEL_M, 'Q': consts.ERROR_LEVEL_Q, 'H': consts.ERROR_LEVEL_H}[error]
+		bits = 8 * len(text.encode('utf-8'))
+		for version in range(1, 41):
+			overhead = 4 + (8 if version <= 9 else 16) # mode indicator + character count indicator
+			capacity = consts.SYMBOL_CAPACITY.get(version, {}).get(e)
+			if capacity is not None and capacity >= overhead + bits:
+				return version, version * 4 + 17
+	except Exception:
+		pass
+	return None
+
 ###########################################################################
 # Main classes
 
@@ -1001,6 +1017,243 @@ class MeshKit_Point_Walk(bpy.types.Operator):
 
 
 
+class MeshKit_Point_QR(bpy.types.Operator):
+	bl_idname = "ops.meshkit_create_point_qr"
+	bl_label = "Replace Mesh"
+	bl_description = "Encode a string as a QR code, generating a point per dark module with edges between adjacent modules, deleting and replacing the currently selected mesh"
+	bl_options = {'REGISTER', 'UNDO'}
+
+	def execute(self, context):
+		settings = bpy.context.scene.mesh_kit_settings
+		text = settings.qr_string
+		error = settings.qr_error
+		invert = settings.qr_invert == 'BACKGROUND'
+		polygons = settings.qr_output == 'POLYGONS'
+		single = settings.qr_corners == 'POINT'
+		radius = settings.scale_maximum
+		space = radius * 2.0 # Module spacing (each module fills the space edge-to-edge)
+
+		# QR encoding is provided by the bundled "segno" wheel (see blender_manifest.toml)
+		try:
+			import segno
+		except ImportError:
+			self.report({'ERROR'}, "QR Code generator unavailable: the 'segno' dependency failed to load. Try reinstalling the extension.")
+			return {'CANCELLED'}
+
+		if not text:
+			self.report({'ERROR'}, "QR Code text is empty")
+			return {'CANCELLED'}
+
+		# Get the selected object
+		obj = bpy.context.object
+
+		# Stop processing if no valid mesh is found
+		if obj is None or obj.type != 'MESH':
+			print('Mesh Kit Point Array error: no mesh object selected')
+			return {'CANCELLED'}
+
+		# Encode the string
+		# make_qr() forces a standard QR symbol (three finder patterns); make() could return a Micro QR with only one
+		# boost_error=False keeps the exact error correction level the user selected (segno otherwise silently upgrades it)
+		try:
+			qr = segno.make_qr(text, error=error, boost_error=False)
+		except Exception as exc:
+			self.report({'ERROR'}, "QR Code encoding failed: " + str(exc))
+			return {'CANCELLED'}
+
+		# Read the module matrix (no quiet zone); matrix[row][col] == 1 for dark modules
+		matrix = [list(row) for row in qr.matrix]
+		size = len(matrix)
+
+		# Identify the three finder patterns (7x7 blocks anchored to the top-left, top-right, and bottom-left corners)
+		finder_origins = [(0, 0), (0, size - 7), (size - 7, 0)]
+
+		def finder_region(r, c):
+			# Returns 'inner' (central 3x3), 'outer' (surrounding ring), or None
+			for fr, fc in finder_origins:
+				if fr <= r <= fr + 6 and fc <= c <= fc + 6:
+					lr, lc = r - fr, c - fc
+					if 2 <= lr <= 4 and 2 <= lc <= 4:
+						return 'inner'
+					if lr in (0, 6) or lc in (0, 6):
+						return 'outer'
+					return 'outer' # Any other dark module inside the block (defensive)
+			return None
+
+		def in_finder(r, c):
+			for fr, fc in finder_origins:
+				if fr <= r <= fr + 6 and fc <= c <= fc + 6:
+					return True
+			return False
+
+		# Build the set of grid point modules and their region classification
+		# region: 0 = finder inner, 1 = finder outer, 2 = data, 3 = single finder marker
+		# In background mode the light modules become the geometry instead of the dark ones (the negative space);
+		# only the finder white-ring falls inside a finder block, so it is tagged region 1 (no inner light modules exist)
+		target_value = 0 if invert else 1
+		grid_points = {} # (row, col) -> region, for the connected module grid
+		single_points = [] # [(row, col, region)] standalone finder markers (no edges)
+
+		for r in range(size):
+			for c in range(size):
+				if matrix[r][c] != target_value:
+					continue
+				region = finder_region(r, c)
+				if region is None:
+					grid_points[(r, c)] = 2
+				elif single:
+					# Skip individual finder modules; a single marker is added separately below
+					continue
+				else:
+					grid_points[(r, c)] = 0 if region == 'inner' else 1
+
+		if single:
+			for fr, fc in finder_origins:
+				# Centre module of the 7x7 finder block
+				single_points.append((fr + 3, fc + 3, 3))
+
+		# Neighbour bitmask (8-directional "47-tile blob" set) computed over the connected grid point membership
+		# Bit weights: up=1, right=2, down=4, left=8; corners only count when both adjacent edges are present
+		def neighbour_state(r, c):
+			up = (r - 1, c) in grid_points
+			down = (r + 1, c) in grid_points
+			left = (r, c - 1) in grid_points
+			right = (r, c + 1) in grid_points
+			state = 0
+			if up:
+				state |= 1
+			if right:
+				state |= 2
+			if down:
+				state |= 4
+			if left:
+				state |= 8
+			if up and right and (r - 1, c + 1) in grid_points:
+				state |= 16
+			if down and right and (r + 1, c + 1) in grid_points:
+				state |= 32
+			if down and left and (r + 1, c - 1) in grid_points:
+				state |= 64
+			if up and left and (r - 1, c - 1) in grid_points:
+				state |= 128
+			return state
+
+		# Switch out of editing mode if active
+		if obj.mode != 'OBJECT':
+			object_mode = obj.mode
+			bpy.ops.object.mode_set(mode = 'OBJECT')
+		else:
+			object_mode = None
+
+		# Create a new bmesh
+		bm = bmesh.new()
+
+		# Centre the code on the origin, with row 0 at +Y (reads correctly viewed down -Z)
+		offset = (size - 1) * space * 0.5
+
+		def place(r, c):
+			return ((c * space) - offset, offset - (r * space), 0.0)
+
+		# Sorted for deterministic ordering (top-left to bottom-right)
+		ordered = sorted(grid_points.keys())
+		total = max(len(ordered) + len(single_points) - 1, 1)
+
+		if polygons:
+			# Solid mode: one flat quad per module (scannable with no modifier; isolated modules are included)
+			# region and state are written to the face domain
+			freg = bm.faces.layers.int.new('region')
+			fstate = bm.faces.layers.int.new('state')
+			ff = bm.faces.layers.float.new('factor')
+			half = space * 0.5
+			corner_lookup = {}
+
+			def corner(cr, cc):
+				# Shared boundary vertex at the top-left of module (cr, cc), so adjacent quads weld together
+				key = (cr, cc)
+				cv = corner_lookup.get(key)
+				if cv is None:
+					cx, cy, _ = place(cr, cc)
+					cv = bm.verts.new((cx - half, cy + half, 0.0))
+					corner_lookup[key] = cv
+				return cv
+
+			def add_quad(r, c, region, state, factor):
+				# Wound counter-clockwise as viewed down -Z for an upward-facing normal
+				f = bm.faces.new((corner(r + 1, c), corner(r + 1, c + 1), corner(r, c + 1), corner(r, c)))
+				f[freg] = region
+				f[fstate] = state
+				f[ff] = factor
+
+			i = 0
+			for (r, c) in ordered:
+				add_quad(r, c, grid_points[(r, c)], neighbour_state(r, c), 0.0 if total == 0 else float(i) / float(total))
+				i += 1
+			# Single finder markers become one-module quads (single-point mode)
+			for (r, c, region) in single_points:
+				add_quad(r, c, region, 0, 0.0 if total == 0 else float(i) / float(total))
+				i += 1
+
+			# Ensure all faces point up (+Z)
+			bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+		else:
+			# Skeleton mode: one point per module, plus edges between adjacent modules for the Skin modifier
+			pf = bm.verts.layers.float.new('factor')
+			ps = bm.verts.layers.float.new('scale')
+			preg = bm.verts.layers.int.new('region')
+			pstate = bm.verts.layers.int.new('state')
+			vert_lookup = {}
+			i = 0
+
+			# Create grid module vertices
+			for (r, c) in ordered:
+				x, y, z = place(r, c)
+				v = bm.verts.new((x, y, z))
+				v[pf] = 0.0 if total == 0 else float(i) / float(total)
+				v[ps] = radius
+				v[preg] = grid_points[(r, c)]
+				v[pstate] = neighbour_state(r, c)
+				vert_lookup[(r, c)] = v
+				i += 1
+
+			# Create standalone finder marker vertices (single-point mode)
+			for (r, c, region) in single_points:
+				x, y, z = place(r, c)
+				v = bm.verts.new((x, y, z))
+				v[pf] = 0.0 if total == 0 else float(i) / float(total)
+				v[ps] = radius
+				v[preg] = region
+				v[pstate] = 0
+				i += 1
+
+			# Connect adjacent grid modules with edges (right and down neighbours, avoiding duplicates)
+			# This wireframe is ready for the Skin modifier (set its radius to match the point radius)
+			for (r, c), v in vert_lookup.items():
+				right = vert_lookup.get((r, c + 1))
+				if right is not None:
+					bm.edges.new([v, right])
+				down = vert_lookup.get((r + 1, c))
+				if down is not None:
+					bm.edges.new([v, down])
+
+		# Replace object with new mesh data
+		bm.to_mesh(obj.data)
+		bm.free()
+		obj.data.update() # This ensures the viewport updates
+
+		# Store the QR settings to custom mesh properties
+		mesh = obj.data
+		mesh['MeshKit_QR_string'] = text
+		mesh['MeshKit_QR_error'] = error
+		mesh['MeshKit_QR_size'] = size
+
+		# Reset to original mode
+		if object_mode is not None:
+			bpy.ops.object.mode_set(mode = object_mode)
+
+		return {'FINISHED'}
+
+
+
 ###########################################################################
 # UI rendering class
 
@@ -1277,6 +1530,35 @@ class MESHKIT_PT_point_array(bpy.types.Panel):
 				if ui_button:
 					layout.operator(MeshKit_Point_Walk.bl_idname, text=ui_button)
 
+			# QR Code UI
+			elif bpy.context.scene.mesh_kit_settings.array_type == "QR":
+				layout.prop(context.scene.mesh_kit_settings, 'qr_string')
+				layout.prop(context.scene.mesh_kit_settings, 'qr_error')
+				layout.prop(context.scene.mesh_kit_settings, 'scale_maximum')
+				col = layout.column(align=True)
+				row1 = col.row(align=True)
+				row1.prop(context.scene.mesh_kit_settings, 'qr_invert', expand=True)
+				row2 = col.row(align=True)
+				row2.prop(context.scene.mesh_kit_settings, 'qr_output', expand=True)
+				row3 = col.row(align=True)
+				row3.prop(context.scene.mesh_kit_settings, 'qr_corners', expand=True)
+
+				if bpy.context.view_layer.objects.active is not None and bpy.context.view_layer.objects.active.type == "MESH":
+					target_name = bpy.context.view_layer.objects.active.name
+					ui_button = 'Replace "' + target_name + '"'
+					estimate = estimate_qr(bpy.context.scene.mesh_kit_settings.qr_string, bpy.context.scene.mesh_kit_settings.qr_error)
+					if estimate:
+						ui_message = 'Version ' + str(estimate[0]) + ', ' + str(estimate[1]) + '×' + str(estimate[1]) + ' modules'
+					else:
+						ui_message = ''
+				else:
+					ui_button = ''
+					ui_message = 'no mesh selected'
+
+				# Display create button
+				if ui_button:
+					layout.operator(MeshKit_Point_QR.bl_idname, text=ui_button)
+
 			# Display data message
 			if ui_message:
 				box = layout.box()
@@ -1304,6 +1586,7 @@ classes = (
 	MeshKit_Point_TriHex,
 	MeshKit_Point_Hexagon,
 	MeshKit_Point_Walk,
+	MeshKit_Point_QR,
 )
 
 # Registered from the tab category set in the extension preferences

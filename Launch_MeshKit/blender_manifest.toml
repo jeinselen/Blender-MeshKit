@@ -2,7 +2,7 @@ schema_version = "1.0.0"
 
 id = "Launch_Mesh_Kit"
 name = "Launch Mesh Kit"
-version = "0.2.8"
+version = "0.3.0"
 tagline = "Geometry tools for copy/paste, arrays, UV mapping and more"
 maintainer = "John Einselen <jeinselen@gmail.com>"
 website = "https://github.com/jeinselen/Blender-MeshKit"
@@ -13,6 +13,10 @@ tags = ["3D View", "Modeling", "Mesh", "Object", "Pipeline", "Scene", "UV"]
 
 blender_version_min = "4.5.0"
 #blender_version_max = "5.9.9"
+
+# Bundled Python dependencies (installed automatically by Blender's extension system)
+# segno: pure-Python, zero-dependency QR Code generator (BSD licensed), used by the Point Array QR Code type
+wheels = ["./wheels/segno-1.6.6-py3-none-any.whl"]
 
 # https://docs.blender.org/manual/en/dev/advanced/extensions/licenses.html
 license = ["SPDX:GPL-3.0-or-later"]

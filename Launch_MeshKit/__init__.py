@@ -449,8 +449,8 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 			('TRIHEX', 'Tri-Hex Array', 'Hexagonal layout of triangular points'),
 			('HEX', 'Hexagonal Array', 'Hexagonal layout of hexagonal points (will not subdivide without gaps)'),
 			('WALK', 'Random Walk', 'Generates a random string of points'),
-#			(None),
-#			('QR', 'QR Code', 'Generates a QR code as a mesh of vertices and edges'),
+			(None),
+			('QR', 'QR Code', 'Generates a QR code as a mesh of vertices and edges'),
 			],
 		default='GRID')
 	
@@ -487,7 +487,47 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 		name="Polyline",
 		description="Sequentially connect data points as a polygon line",
 		default=False)
-	
+
+	# QR Code settings
+	qr_string: bpy.props.StringProperty(
+		name="Text",
+		description="String to encode in the QR code (URL, text, or any data)",
+		default="https://github.com/jeinselen/Blender-MeshKit")
+	qr_error: bpy.props.EnumProperty(
+		name='Error Correction',
+		description='Amount of redundancy added so the code stays readable when partially obscured (higher levels create larger, denser codes)',
+		items=[
+			('L', 'Low (7%)', 'Recovers roughly 7% of damaged data'),
+			('M', 'Medium (15%)', 'Recovers roughly 15% of damaged data'),
+			('Q', 'Quartile (25%)', 'Recovers roughly 25% of damaged data'),
+			('H', 'High (30%)', 'Recovers roughly 30% of damaged data'),
+			],
+		default='M')
+	qr_invert: bpy.props.EnumProperty(
+		name='Invert',
+		description='Generate the dark modules of the code, or the light modules instead',
+		items=[
+			('FOREGROUND', 'Foreground', 'Generate a module for each dark cell of the code'),
+			('BACKGROUND', 'Background', 'Generate a module for each light cell instead (the inverted negative space)'),
+			],
+		default='FOREGROUND')
+	qr_output: bpy.props.EnumProperty(
+		name='Output',
+		description='Geometry created for each module',
+		items=[
+			('POINTS', 'Points', 'One vertex per module, with adjacent modules joined by edges'),
+			('POLYGONS', 'Polygons', 'One solid quad face per module, producing a flat scannable code with no modifier'),
+			],
+		default='POINTS')
+	qr_corners: bpy.props.EnumProperty(
+		name='Corners',
+		description='How the three finder patterns (positioning markers) are represented',
+		items=[
+			('MESH', 'Mesh', 'Finder patterns follow the Output setting, tagged via the "region" attribute'),
+			('POINT', 'Point', 'Collapse each finder pattern to a single point (region 3) for instancing a custom marker'),
+			],
+		default='MESH')
+
 	# Cubic Grid settings
 	grid_count: bpy.props.IntVectorProperty(
 		name="Count",

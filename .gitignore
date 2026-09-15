@@ -20,6 +20,7 @@ parts/
 sdist/
 var/
 wheels/
+!Launch_MeshKit/wheels/
 share/python-wheels/
 *.egg-info/
 .installed.cfg
