@@ -26,7 +26,7 @@
 
 - ### Point Array
 
-  - Generates vertex point arrays in various patterns, including cubic grid, golden spiral, poisson packing, and volume field data
+  - Generates vertex point arrays in various patterns, including cubic grid, golden spiral, and poisson packing
 
     ![Screenshot-PointArray](images/Screenshot-PointArray.png)
 

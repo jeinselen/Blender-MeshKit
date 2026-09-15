@@ -1,6 +1,5 @@
 import bpy
 import os
-from pathlib import Path
 
 # Local imports
 from . import copy_paste
@@ -444,9 +443,6 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 			('GRID', 'Cubic Grid', 'Cubic array of points'),
 			('GOLDEN', 'Golden Angle', 'Spherical area, will be disabled if any of the dimensions are smaller than the maximum point size'),
 			('PACK', 'Poisson Disc', 'Generates random points while deleting any that overlap'),
-			(None),
-			('DATA', 'Position Data (CSV/NPY)', 'Generates points from external files (CSV or NPY format) or internal text datablocks (CSV only)'),
-			('FIELD', 'Volume Field (Unity 3D)', 'Generates points from an external VF format file')
 			],
 		default='GRID')
 	
@@ -599,84 +595,6 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 		name="Feedback",
 		description="Stores the total time spent processing the last created array",
 		default="",)
-	
-	# Position Data import settings
-	def textblocks_Enum(self,context):
-		EnumItems = []
-		i = 0
-		for text in bpy.data.texts:
-			EnumItems.append((str(i), text.name, text.lines[0].body))
-			i += 1
-		return EnumItems
-	
-	def set_data_file(self, value):
-		file_path = Path(bpy.path.abspath(value))
-		if file_path.is_file():
-			if "csv" in file_path.suffix or "npy" in file_path.suffix:
-				self["data_file"] = value
-	
-	def get_data_file(self):
-		return self.get("data_file", bpy.context.scene.mesh_kit_settings.bl_rna.properties["data_file"].default)
-	
-	data_source: bpy.props.EnumProperty(
-		name='Source',
-		description='Create or replace object of same name, or replace currently selected object mesh data',
-		items=[
-			('EXT', 'External', 'Imports CSV or NPY format data from external file source'),
-			('INT', 'Internal', 'Imports CSV format data from internal Blender text datablock')
-			],
-		default='EXT')
-	data_text: bpy.props.EnumProperty(
-		name = "Text",
-		description = "Available text blocks",
-		items = textblocks_Enum)
-	data_file: bpy.props.StringProperty(
-		name="File",
-		description="Select external CSV or NPY data source file",
-		default="",
-		maxlen=4096,
-		subtype="FILE_PATH",
-		set=set_data_file,
-		get=get_data_file)
-	data_target: bpy.props.EnumProperty(
-		name='Target',
-		description='Create or replace object of same name, or replace currently selected object mesh data',
-		items=[
-			('SELECTED', 'Selected', 'Replaces currently selected object mesh data'),
-			('NAME', 'Name', 'Creates or replaces an object of the same name as the data source')
-			],
-		default='SELECTED')
-	
-	# Volume Field import settings
-	def set_field_file(self, value):
-		file_path = Path(bpy.path.abspath(value))
-		if file_path.is_file():
-			if "vf" in file_path.suffix:
-				self["field_file"] = value
-	
-	def get_field_file(self):
-		return self.get("field_file", bpy.context.scene.mesh_kit_settings.bl_rna.properties["field_file"].default)
-	
-	field_file: bpy.props.StringProperty(
-		name="File",
-		description="Select external VF data source file",
-		default="",
-		maxlen=4096,
-		subtype="FILE_PATH",
-		set=set_field_file,
-		get=get_field_file)
-	field_target: bpy.props.EnumProperty(
-		name='Target',
-		description='Create or replace object of same name, or replace currently selected object mesh data',
-		items=[
-			('SELECTED', 'Selected', 'Replaces currently selected object mesh data'),
-			('NAME', 'Name', 'Creates or replaces an object of the same name as the data source')
-			],
-		default='SELECTED')
-	field_center: bpy.props.BoolProperty(
-		name="Center",
-		description="Aligns the imported data by total size instead of the lower right corner",
-		default=True)
 	
 	
 	

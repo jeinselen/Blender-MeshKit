@@ -26,5 +26,3 @@ license = ["SPDX:GPL-3.0-or-later"]
 ##
 ## If using network, remember to also check `bpy.app.online_access`
 ## https://docs.blender.org/manual/en/dev/advanced/extensions/addons.html#internet-access
-[permissions]
-files = "Importing point array data from CSV, NPY, and VF files"
