@@ -443,6 +443,14 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 			('GRID', 'Cubic Grid', 'Cubic array of points'),
 			('GOLDEN', 'Golden Angle', 'Spherical area, will be disabled if any of the dimensions are smaller than the maximum point size'),
 			('PACK', 'Poisson Disc', 'Generates random points while deleting any that overlap'),
+			(None),
+			('REC', 'Rectangular Array', 'Rectangular layout of square points'),
+			('TRI', 'Triangular Array', 'Triangular layout of triangular points'),
+			('TRIHEX', 'Tri-Hex Array', 'Hexagonal layout of triangular points'),
+			('HEX', 'Hexagonal Array', 'Hexagonal layout of hexagonal points (will not subdivide without gaps)'),
+			('WALK', 'Random Walk', 'Generates a random string of points'),
+#			(None),
+#			('QR', 'QR Code', 'Generates a QR code as a mesh of vertices and edges'),
 			],
 		default='GRID')
 	
@@ -595,9 +603,85 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 		name="Feedback",
 		description="Stores the total time spent processing the last created array",
 		default="",)
-	
-	
-	
+
+	# Shared array count (Rectangular uses both X and Y, Triangular/Tri-Hex/Hexagonal use only the first value)
+	array_count: bpy.props.IntVectorProperty(
+		name="Count",
+		subtype="XYZ",
+		size=2,
+		description="Number of starting elements (Rectangular uses X and Y, other arrays use only the first value)",
+		default=[8, 8],
+		step=1,
+		soft_min=1,
+		soft_max=20,
+		min=1,
+		max=100)
+
+	# Shared subdivision settings (Rectangular, Triangular, Tri-Hex, Hexagonal)
+	division_levels: bpy.props.IntProperty(
+		name="Divisions",
+		description="The number of times the algorithm will loop through dividing points",
+		default=2,
+		step=1,
+		soft_min=0,
+		soft_max=4,
+		min=0,
+		max=8,)
+	division_percentage: bpy.props.FloatProperty(
+		name="Percentage",
+		description="Percentage chance that points will be selected for division",
+		default=0.5,
+		step=10,
+		precision=3,
+		soft_min=0.0,
+		soft_max=1.0,
+		min=0.0,
+		max=1.0,)
+
+	# Random Walk settings
+	walk_dimensions: bpy.props.EnumProperty(
+		name='Dimensions',
+		description='Dimensions in which points will be created',
+		items=[
+			('2D', '2D', 'Randomly walk in only X and Y dimensions'),
+			('3D', '3D', 'Randomly generate points in all 3 dimensions'),
+			],
+		default='3D')
+	walk_directionality: bpy.props.FloatProperty(
+		name="Directionality",
+		description="Amount to favour the specified vector when generating each step",
+		default=0.0,
+		step=10,
+		precision=3,
+		soft_min=0.0,
+		soft_max=1.0,
+		min=0.0,
+		max=1.0,)
+	walk_vector: bpy.props.FloatVectorProperty(
+		name="Vector",
+		subtype="XYZ",
+		description="Vector to favour when generating each step",
+		default=[1.0, 0.0, 0.0],
+		soft_min=-1.0,
+		soft_max=1.0,
+		min=-1.0,
+		max=1.0,)
+	walk_rotation: bpy.props.EnumProperty(
+		name='Rotation',
+		description='How rotation is assigned to each generated point',
+		items=[
+			('RANDOM', 'Random', 'Assign a random rotation to each point'),
+			('AHEAD', 'Look Ahead', 'Each point will aim at the next point in the sequence'),
+			('BEHIND', 'Look Behind', 'Each point will aim at the previous point in the sequence'),
+			],
+		default='RANDOM')
+	walk_decay: bpy.props.BoolProperty(
+		name="Radius Decay",
+		description='Linearly reduces the maximum radius based on the number of elements created and the maximum number of elements',
+		default=False)
+
+
+
 	########## Radial Offset ##########
 	
 	offset_position: bpy.props.EnumProperty(
