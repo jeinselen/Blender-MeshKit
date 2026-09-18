@@ -42,6 +42,10 @@
 
     ![Screenshot-SegmentMesh](images/Screenshot-SegmentMesh.png)
 
+- ### UV Mesh
+
+  - Bake a static mesh from a selected uv map, particularly useful for debugging dynamic mapping created in Geometry Nodes
+
 - ### Vertex Quantize
 
   - Snaps vertices to customisable XYZ steps

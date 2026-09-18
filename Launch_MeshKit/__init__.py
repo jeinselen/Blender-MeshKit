@@ -10,6 +10,7 @@ from . import radial_offset
 from . import segment_mesh
 from . import edit_attribute
 from . import utility_panel
+from . import uv_mesh
 from . import vertex_quantize
 
 
@@ -21,98 +22,110 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 	bl_idname = __package__
 	
 	########## Copy Paste ##########
-
+	
 	def update_copypaste_category(self, context):
 		utility_panel.register_panels(copy_paste.panels)
-
+	
 	copypaste_category: bpy.props.StringProperty(
 		name="3D View",
 		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_copypaste_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-
+	
 	########## Mesh Align ##########
-
+	
 	def update_meshalign_category(self, context):
 		utility_panel.register_panels(mesh_align.panels)
-
+	
 	meshalign_category: bpy.props.StringProperty(
 		name="3D View",
 		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_meshalign_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-
+	
 	########## Planar UV ##########
-
+	
 	def update_planaruv_category(self, context):
 		# Includes the Advanced subpanel, which must follow its parent
 		utility_panel.register_panels(planar_uv.panels)
-
+	
 	planaruv_category: bpy.props.StringProperty(
 		name="3D View",
 		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_planaruv_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-
+	
 	########## Point Array ##########
-
+	
 	def update_pointarray_category(self, context):
 		utility_panel.register_panels(point_array.panels)
-
+	
 	pointarray_category: bpy.props.StringProperty(
 		name="3D View",
 		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_pointarray_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-
+	
 	########## Radial Offset ##########
-
+	
 	def update_radialoffset_category(self, context):
 		utility_panel.register_panels(radial_offset.panels)
-
+	
 	radialoffset_category: bpy.props.StringProperty(
 		name="3D View",
 		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_radialoffset_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-
+	
 	########## Segment Mesh ##########
-
+	
 	def update_segmentmesh_category(self, context):
 		utility_panel.register_panels(segment_mesh.panels)
-
+	
 	segmentmesh_category: bpy.props.StringProperty(
 		name="3D View",
 		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_segmentmesh_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-
+	
 	########## Edit Attribute ##########
-
+	
 	def update_editattribute_category(self, context):
 		utility_panel.register_panels(edit_attribute.panels)
-
+	
 	editattribute_category: bpy.props.StringProperty(
 		name="3D View",
 		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_editattribute_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
-
+	
+	########## UV to Mesh ##########
+	
+	def update_uv_mesh_category(self, context):
+		utility_panel.register_panels(uv_mesh.panels)
+	
+	uv_mesh_category: bpy.props.StringProperty(
+		name="3D View",
+		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
+		default="Launch",
+		update=update_uv_mesh_category)
+		# Consider adding search_options=(list of currently available tabs) for easier operation
+	
 	########## Vertex Quantize ##########
-
+	
 	def update_vertexquantise_category(self, context):
 		utility_panel.register_panel(vertex_quantize.MESHKIT_PT_vertex_quantize)
-
+	
 	def update_vertexquantiseuv_category(self, context):
 		utility_panel.register_panel(vertex_quantize.MESHKIT_PT_uv_quantize)
-
+	
 	# 3D view tab
 	vertexquantize_category: bpy.props.StringProperty(
 		name="3D View",
@@ -179,6 +192,13 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 		titlegrid = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
 		titlegrid.label(text="Segment Mesh", icon="MESH_GRID") # MESH_GRID GRID VIEW_ORTHO
 		titlegrid.prop(self, "segmentmesh_category", text="", icon="VIEW3D")
+		
+		########## UV to Mesh ##########
+		
+		layout.separator(factor = 2.0)
+		titlegrid = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
+		titlegrid.label(text="UV to Mesh", icon="UV") # UV UV_DATA GROUP_UVS
+		titlegrid.prop(self, "uv_mesh_category", text="", icon="VIEW3D")
 		
 		########## Vertex Quantize ##########
 		layout.separator(factor = 2.0)
@@ -820,6 +840,28 @@ class MeshKitSettings(bpy.types.PropertyGroup):
 	
 	
 	
+	########## UV to Mesh ##########
+	
+	uv_mesh_map: bpy.props.EnumProperty(
+		name="UV Map",
+		description="UV map to convert into a new mesh, read from the active object's evaluated mesh (including Geometry Nodes output)",
+		items=uv_mesh.get_uv_map_items)
+	uv_mesh_separator: bpy.props.StringProperty(
+		name="Separator",
+		description="Separator between the object name and the UV map name used to name the new mesh and object",
+		default="_",
+		maxlen=16)
+	uv_mesh_weld_distance: bpy.props.FloatProperty(
+		name="Weld Distance",
+		description="Maximum distance for merging coincident UV vertices along seams (equivalent to Merge by Distance)",
+		default=0.000001,
+		min=0.0,
+		soft_min=0.0,
+		soft_max=0.001,
+		precision=6)
+	
+	
+	
 	########## Vertex Quantize ##########
 	
 	vert_dimensions: bpy.props.EnumProperty(
@@ -938,6 +980,7 @@ def register():
 	segment_mesh.register()
 	edit_attribute.register()
 	mesh_align.register()
+	uv_mesh.register()
 	vertex_quantize.register()
 
 
@@ -945,6 +988,7 @@ def register():
 def unregister():
 	########## Unregister Components ##########
 	vertex_quantize.unregister()
+	uv_mesh.unregister()
 	edit_attribute.unregister()
 	mesh_align.unregister()
 	segment_mesh.unregister()
