@@ -5,18 +5,17 @@ import random
 
 from array import array
 from pathlib import Path
-
 from bpy_extras.io_utils import ImportHelper
-
 from . import utility_panel
 
-
+# Property Names
 NODE_GROUP_TAG = "meshkit_image_shader_group"
 MATERIAL_TAG = "meshkit_image_material"
 TEXTURE_NODE_TAG = "meshkit_image_source_texture"
 NODE_GROUP_NAME = "MeshKit Shader"
-TEXTURE_NODE_NAME = "MeshKit Texture"
-SOURCE_PROPERTY = "MeshKit Texture"
+TEXTURE_NODE_NAME = "MeshKit Image"
+SOURCE_PROPERTY = "MeshKit Image Source"
+
 
 
 ###########################################################################
@@ -27,7 +26,7 @@ def _content_bbox(mask, width, height, bounds=None):
 		x0, y0, x1, y1 = 0, 0, width, height
 	else:
 		x0, y0, x1, y1 = bounds
-
+	
 	min_x, min_y = x1, y1
 	max_x = max_y = -1
 	for y in range(y0, y1):
@@ -43,7 +42,7 @@ def _content_bbox(mask, width, height, bounds=None):
 			if mask[row_start + x]:
 				max_x = max(max_x, x)
 				break
-
+	
 	if max_x < min_x or max_y < min_y:
 		return None
 	return (min_x, min_y, max_x + 1, max_y + 1)
@@ -85,7 +84,7 @@ def _rectilinear_regions(mask, width, height, threshold, iterations):
 	if initial is None:
 		return []
 	regions = [initial]
-
+	
 	for _iteration in range(iterations):
 		changed = False
 		next_regions = []
@@ -104,7 +103,7 @@ def _rectilinear_regions(mask, width, height, threshold, iterations):
 					if mask[y * width + x]:
 						return False
 				return True
-
+			
 			y_gaps = _qualifying_runs(row_empty, y0, y1, threshold)
 			x_gaps = _qualifying_runs(column_empty, x0, x1, threshold)
 			x_ranges = _ranges_between(x0, x1, x_gaps)
@@ -125,7 +124,7 @@ def _rectilinear_regions(mask, width, height, threshold, iterations):
 		regions = next_regions
 		if not changed:
 			break
-
+	
 	return regions
 
 
@@ -146,7 +145,7 @@ def _dilate_mask(mask, width, height, threshold):
 	low = threshold // 2
 	high = threshold - low
 	horizontal = bytearray(width * height)
-
+	
 	for y in range(height):
 		row = y * width
 		count = 0
@@ -161,7 +160,7 @@ def _dilate_mask(mask, width, height, threshold):
 				if add_x < width:
 					count += mask[row + add_x]
 			horizontal[row + x] = 1 if count else 0
-
+	
 	result = bytearray(width * height)
 	for x in range(width):
 		count = 0
@@ -218,23 +217,23 @@ def _trace_mask(mask, width, height):
 			edges.add(((x + 1, y + 1), (x, y + 1)))
 		if x == 0 or not mask[index - 1]:
 			edges.add(((x, y + 1), (x, y)))
-
+	
 	outgoing = {}
 	for edge in edges:
 		outgoing.setdefault(edge[0], []).append(edge[1])
-
+	
 	unused = set(edges)
 	loops = []
 	direction_index = {(1, 0): 0, (0, 1): 1, (-1, 0): 2, (0, -1): 3}
 	turn_priority = {1: 0, 0: 1, 3: 2, 2: 3}
-
+	
 	while unused:
 		start_edge = min(unused)
 		start_point, current = start_edge
 		unused.remove(start_edge)
 		loop = [start_point]
 		previous = start_point
-
+		
 		while current != start_point:
 			loop.append(current)
 			candidates = [end for end in outgoing.get(current, []) if (current, end) in unused]
@@ -251,10 +250,10 @@ def _trace_mask(mask, width, height):
 			next_point = min(candidates, key=candidate_key)
 			unused.remove((current, next_point))
 			previous, current = current, next_point
-
+		
 		if len(loop) >= 3:
 			loops.append(_remove_collinear(loop))
-
+	
 	return [loop for loop in loops if len(loop) >= 3 and _polygon_area(loop) > 0]
 
 
@@ -333,7 +332,7 @@ def _sort_polygons(polygons, sort_mode, seed, width, height):
 		xs = [point[0] for point in poly]
 		ys = [point[1] for point in poly]
 		return min(xs), min(ys), max(xs), max(ys)
-
+	
 	if sort_mode == "RANDOM":
 		result = list(polygons)
 		random.Random(seed).shuffle(result)
@@ -341,7 +340,7 @@ def _sort_polygons(polygons, sort_mode, seed, width, height):
 
 	center_x = width * 0.5
 	center_y = height * 0.5
-
+	
 	def key(poly):
 		min_x, min_y, max_x, max_y = bounds(poly)
 		if sort_mode == "LR_TD":
@@ -356,10 +355,10 @@ def _sort_polygons(polygons, sort_mode, seed, width, height):
 		poly_center_y = (min_y + max_y) * 0.5
 		distance = (poly_center_x - center_x) ** 2 + (poly_center_y - center_y) ** 2
 		angle = math.atan2(poly_center_y - center_y, poly_center_x - center_x)
-		if sort_mode == "EDGE_IN":
+		if sort_mode == "IN":
 			return (-distance, angle)
 		return (distance, angle)
-
+	
 	return sorted(polygons, key=key)
 
 
@@ -368,10 +367,10 @@ def build_polygons(mask, width, height, settings):
 	threshold = settings.image_mesh_threshold
 	if mode == "NONE":
 		return [[(0.0, 0.0), (float(width), 0.0), (float(width), float(height)), (0.0, float(height))]]
-
+	
 	if not any(mask):
 		return []
-
+	
 	if mode in {"RECTILINEAR", "BOTH"}:
 		regions = _rectilinear_regions(
 			mask,
@@ -382,7 +381,7 @@ def build_polygons(mask, width, height, settings):
 		)
 	else:
 		regions = [(0, 0, width, height)]
-
+	
 	polygons = []
 	if mode == "RECTILINEAR":
 		padding = threshold * 0.5
@@ -417,6 +416,7 @@ def build_polygons(mask, width, height, settings):
 	)
 
 
+
 ###########################################################################
 # Blender image, mesh, and material helpers
 
@@ -439,7 +439,7 @@ def _alignment_offset(alignment, width, height):
 		x = -float(width)
 	else:
 		x = -float(width) * 0.5
-
+	
 	if alignment.startswith("TOP") or alignment == "TOP":
 		y = -float(height)
 	elif alignment.startswith("BOTTOM") or alignment == "BOTTOM":
@@ -466,7 +466,7 @@ def _build_mesh(name, polygons, width, height, pixels_per_meter, alignment):
 
 	if not faces:
 		raise ValueError("No visible image regions were found")
-
+	
 	mesh = bpy.data.meshes.new(name)
 	try:
 		mesh.from_pydata(vertices, [], faces)
@@ -491,26 +491,26 @@ def _ensure_shader_group():
 	group = _find_shader_group()
 	if group is not None:
 		return group
-
+	
 	group = bpy.data.node_groups.new(NODE_GROUP_NAME, "ShaderNodeTree")
 	group[NODE_GROUP_TAG] = True
 	group.interface.new_socket(name="Color", in_out="INPUT", socket_type="NodeSocketColor")
 	group.interface.new_socket(name="Alpha", in_out="INPUT", socket_type="NodeSocketFloat")
 	group.interface.new_socket(name="Shader", in_out="OUTPUT", socket_type="NodeSocketShader")
-
+	
 	nodes = group.nodes
 	links = group.links
 	input_node = nodes.new("NodeGroupInput")
-	input_node.location = (-420, 80)
+	input_node.location = (-540, 0)
 	transparent = nodes.new("ShaderNodeBsdfTransparent")
-	transparent.location = (-180, -80)
+	transparent.location = (-360, -80)
 	emission = nodes.new("ShaderNodeEmission")
-	emission.location = (-180, 120)
+	emission.location = (-360, -180)
 	mix = nodes.new("ShaderNodeMixShader")
-	mix.location = (80, 80)
+	mix.location = (-180, 0)
 	output_node = nodes.new("NodeGroupOutput")
-	output_node.location = (320, 80)
-
+	output_node.location = (0, 0)
+	
 	links.new(input_node.outputs["Color"], emission.inputs["Color"])
 	links.new(input_node.outputs["Alpha"], mix.inputs[0])
 	links.new(transparent.outputs[0], mix.inputs[1])
@@ -525,21 +525,22 @@ def _create_material(name, image):
 	material.use_nodes = True
 	if hasattr(material, "surface_render_method"):
 		material.surface_render_method = "DITHERED"
-
+	
 	nodes = material.node_tree.nodes
 	nodes.clear()
 	texture = nodes.new("ShaderNodeTexImage")
 	texture.name = TEXTURE_NODE_NAME
-	texture.label = "Image Mesh Source"
+	texture.label = TEXTURE_NODE_NAME
 	texture[TEXTURE_NODE_TAG] = True
 	texture.image = image
-	texture.location = (-440, 80)
+	texture.location = (-420, 00)
+	texture.width = 200
 	group_node = nodes.new("ShaderNodeGroup")
 	group_node.node_tree = _ensure_shader_group()
-	group_node.location = (-140, 80)
+	group_node.location = (-180, 0)
 	output = nodes.new("ShaderNodeOutputMaterial")
-	output.location = (180, 80)
-
+	output.location = (0, 0)
+	
 	links = material.node_tree.links
 	links.new(texture.outputs["Color"], group_node.inputs["Color"])
 	links.new(texture.outputs["Alpha"], group_node.inputs["Alpha"])
@@ -634,13 +635,13 @@ def _replace_managed_object(obj, filepath, settings):
 			break
 	if material is None or texture_node is None:
 		raise ValueError(f"{obj.name}: managed source texture node is missing")
-
+	
 	image, new_mesh, island_count = _load_and_build(filepath, settings, obj.data.name)
 	old_mesh = obj.data
 	old_image = texture_node.image
 	new_material = material
 	texture_replaced = False
-
+	
 	try:
 		if _material_is_shared(material, obj):
 			new_material = material.copy()
@@ -659,7 +660,7 @@ def _replace_managed_object(obj, filepath, settings):
 		)
 		for polygon in new_mesh.polygons:
 			polygon.material_index = source_slot
-
+		
 		texture_node.image = image
 		texture_replaced = True
 		obj.data = new_mesh
@@ -673,12 +674,13 @@ def _replace_managed_object(obj, filepath, settings):
 		if new_material != material and new_material.users == 0:
 			bpy.data.materials.remove(new_material)
 		raise
-
+	
 	if old_mesh.users == 0:
 		bpy.data.meshes.remove(old_mesh)
 	if old_image is not None and old_image.users == 0:
 		bpy.data.images.remove(old_image)
 	return island_count
+
 
 
 ###########################################################################
@@ -690,7 +692,7 @@ class OBJECT_OT_image_mesh_import(bpy.types.Operator, ImportHelper):
 	bl_label = "Import Images"
 	bl_description = "Import one or more images as mesh objects using the current Image Mesh settings"
 	bl_options = {"REGISTER", "UNDO"}
-
+	
 	filename_ext = ""
 	filter_glob: bpy.props.StringProperty(
 		default="*.bmp;*.cin;*.dds;*.dpx;*.exr;*.hdr;*.jpeg;*.jpg;*.jp2;*.png;*.psd;*.sgi;*.tga;*.tif;*.tiff;*.webp",
@@ -698,11 +700,11 @@ class OBJECT_OT_image_mesh_import(bpy.types.Operator, ImportHelper):
 	)
 	files: bpy.props.CollectionProperty(type=bpy.types.OperatorFileListElement, options={"HIDDEN", "SKIP_SAVE"})
 	directory: bpy.props.StringProperty(subtype="DIR_PATH", options={"HIDDEN", "SKIP_SAVE"})
-
+	
 	@classmethod
 	def poll(cls, context):
 		return context.mode == "OBJECT"
-
+	
 	def execute(self, context):
 		settings = context.scene.mesh_kit_settings
 		paths = [os.path.join(self.directory, item.name) for item in self.files]
@@ -710,7 +712,7 @@ class OBJECT_OT_image_mesh_import(bpy.types.Operator, ImportHelper):
 			paths = [self.filepath]
 		created = []
 		failures = []
-
+		
 		for filepath in paths:
 			base_name = Path(filepath).stem
 			image = mesh = material = obj = None
@@ -733,21 +735,21 @@ class OBJECT_OT_image_mesh_import(bpy.types.Operator, ImportHelper):
 				if image is not None and image.users == 0:
 					bpy.data.images.remove(image)
 				failures.append(f"{base_name}: {exc}")
-
+		
 		if created:
 			for obj in context.selected_objects:
 				obj.select_set(False)
 			for obj in created:
 				obj.select_set(True)
 			context.view_layer.objects.active = created[-1]
-
+		
 		if failures:
 			self.report({"WARNING"}, f"Imported {len(created)} image(s); {len(failures)} failed. See console")
 			for failure in failures:
 				print(f"Image Mesh import failed | {failure}")
 		elif created:
 			self.report({"INFO"}, f"Imported {len(created)} image mesh object(s)")
-
+		
 		return {"FINISHED"} if created else {"CANCELLED"}
 
 
@@ -757,13 +759,13 @@ class OBJECT_OT_image_mesh_update_selected(bpy.types.Operator):
 	bl_label = "Update Selected"
 	bl_description = "Rebuild every selected Image Mesh object with the current settings"
 	bl_options = {"REGISTER", "UNDO"}
-
+	
 	@classmethod
 	def poll(cls, context):
 		return context.mode == "OBJECT" and any(
 			_source_path(obj) is not None for obj in context.selected_objects
 		)
-
+	
 	def execute(self, context):
 		settings = context.scene.mesh_kit_settings
 		return _update_objects(self, _managed_objects(context.selected_objects), settings)
@@ -775,13 +777,13 @@ class OBJECT_OT_image_mesh_replace_active(bpy.types.Operator, ImportHelper):
 	bl_label = "Replace Active"
 	bl_description = "Choose a new source image for the active managed object, preserving its object and customized material"
 	bl_options = {"REGISTER", "UNDO"}
-
+	
 	filename_ext = ""
 	filter_glob: bpy.props.StringProperty(
 		default="*.bmp;*.cin;*.dds;*.dpx;*.exr;*.hdr;*.jpeg;*.jpg;*.jp2;*.png;*.psd;*.sgi;*.tga;*.tif;*.tiff;*.webp",
 		options={"HIDDEN"},
 	)
-
+	
 	@classmethod
 	def poll(cls, context):
 		return (
@@ -789,7 +791,7 @@ class OBJECT_OT_image_mesh_replace_active(bpy.types.Operator, ImportHelper):
 			and context.active_object is not None
 			and _source_path(context.active_object) is not None
 		)
-
+	
 	def execute(self, context):
 		settings = context.scene.mesh_kit_settings
 		obj = context.active_object
@@ -814,7 +816,7 @@ def _update_objects(operator, objects, settings):
 			updated += 1
 		except Exception as exc:
 			failures.append(f"{obj.name}: {exc}")
-
+	
 	if failures:
 		message = f"Updated {updated} object(s); {len(failures)} failed"
 		operator.report({"WARNING"}, message + ". See console")
@@ -823,6 +825,7 @@ def _update_objects(operator, objects, settings):
 	elif updated:
 		operator.report({"INFO"}, f"Updated {updated} image mesh object(s)")
 	return {"FINISHED"} if updated else {"CANCELLED"}
+
 
 
 ###########################################################################
@@ -837,59 +840,68 @@ class MESHKIT_PT_image_mesh(bpy.types.Panel):
 	bl_order = 36
 	bl_options = {"DEFAULT_CLOSED"}
 	category_preference = "imagemesh_category"
-
+	
 	def draw(self, context):
 		settings = context.scene.mesh_kit_settings
 		layout = self.layout
 		layout.use_property_decorate = False
 		layout.use_property_split = True
-
+		
 		layout.prop(settings, "image_mesh_segmentation")
+		
 		row = layout.row()
 		row.active = settings.image_mesh_segmentation != "NONE"
 		row.prop(settings, "image_mesh_threshold")
+		
 		row = layout.row()
 		row.active = settings.image_mesh_segmentation in {"RECTILINEAR", "BOTH"}
 		row.prop(settings, "image_mesh_iterations")
+		
 		row = layout.row()
 		row.active = settings.image_mesh_segmentation in {"CONTOUR", "BOTH"}
 		row.prop(settings, "image_mesh_detail")
+		
 		row = layout.row()
 		row.active = settings.image_mesh_segmentation != "NONE"
-		row.prop(settings, "image_mesh_sort")
+		row.prop(settings, "image_mesh_sort", expand=True)
+		
 		row = layout.row()
 		row.active = settings.image_mesh_segmentation != "NONE" and settings.image_mesh_sort == "RANDOM"
 		row.prop(settings, "image_mesh_seed")
+		
 		layout.prop(settings, "image_mesh_scale")
-
-		box = layout.box()
-		box.label(text="Alignment")
-		for values, labels in (
-			(("TOP_LEFT", "TOP", "TOP_RIGHT"), ("↖", "↑", "↗")),
-			(("LEFT", "CENTER", "RIGHT"), ("←", "•", "→")),
-			(("BOTTOM_LEFT", "BOTTOM", "BOTTOM_RIGHT"), ("↙", "↓", "↘")),
-		):
-			row = box.row(align=True)
-			for value, label in zip(values, labels):
-				row.prop_enum(settings, "image_mesh_alignment", value, text=label)
-
+		
+		
+		
+		anchor = layout.split(factor=0.4)
+		label = anchor.column()
+		label.alignment = "RIGHT"
+		label.label(text="Anchor Align")
+		anchor_grid = anchor.grid_flow(row_major=True, columns=3, even_columns=True, even_rows=True, align=True)
+		anchor_grid.use_property_split = False
+		anchor_grid.use_property_decorate = False
+		anchor_grid.prop(settings, "image_mesh_alignment", expand=True)
+		
+		
+		
 		layout.operator(OBJECT_OT_image_mesh_import.bl_idname, icon="IMAGE_DATA")
-
+		row = layout.row(align=True)
+		row.operator(OBJECT_OT_image_mesh_update_selected.bl_idname, text="Update Selected")
+		row.operator(OBJECT_OT_image_mesh_replace_active.bl_idname, text="Replace Active")
+		
 		obj = context.active_object
 		source = _source_path(obj)
 		if source is not None:
 			box = layout.box()
-			box.label(text="Active Image Mesh", icon="OBJECT_DATA")
-			box.prop(obj, f'["{SOURCE_PROPERTY}"]', text="Source")
+#			box.label(text="Active Image Mesh", icon="OBJECT_DATA")
+#			box.prop(obj, f'["{SOURCE_PROPERTY}"]', text="")
 			absolute = _absolute_path(source)
 			if os.path.isfile(absolute):
-				box.label(text="Source file found", icon="CHECKMARK")
+				box.prop(obj, f'["{SOURCE_PROPERTY}"]', text="", icon="CHECKMARK")
+#				box.label(text="Source file found", icon="CHECKMARK")
 			else:
-				box.label(text="Source file missing", icon="ERROR")
-
-		grid = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=True)
-		grid.operator(OBJECT_OT_image_mesh_update_selected.bl_idname, text="Update Selected")
-		grid.operator(OBJECT_OT_image_mesh_replace_active.bl_idname, text="Replace Active")
+				box.prop(obj, f'["{SOURCE_PROPERTY}"]', text="", icon="ERROR")
+#				box.label(text="Source file missing", icon="ERROR")
 
 
 classes = (
@@ -915,3 +927,4 @@ def unregister():
 
 if __name__ == "__main__":
 	register()
+	
