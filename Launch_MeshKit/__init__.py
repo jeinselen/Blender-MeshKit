@@ -9,6 +9,7 @@ from . import point_array
 from . import radial_offset
 from . import segment_mesh
 from . import edit_attribute
+from . import image_mesh
 from . import utility_panel
 from . import uv_mesh
 from . import vertex_quantize
@@ -43,6 +44,18 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
 		default="Launch",
 		update=update_meshalign_category)
+		# Consider adding search_options=(list of currently available tabs) for easier operation
+
+	########## Image Mesh ##########
+
+	def update_imagemesh_category(self, context):
+		utility_panel.register_panels(image_mesh.panels)
+
+	imagemesh_category: bpy.props.StringProperty(
+		name="3D View",
+		description="Choose a 3D view tab category for the panel to be placed in, or leave empty to hide the panel",
+		default="Launch",
+		update=update_imagemesh_category)
 		# Consider adding search_options=(list of currently available tabs) for easier operation
 	
 	########## Planar UV ##########
@@ -168,6 +181,12 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 		titlegrid = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
 		titlegrid.label(text="Mesh Align", icon="PIVOT_CURSOR") # PIVOT_CURSOR OBJECT_ORIGIN EMPTY_AXIS ORIENTATION_CURSOR PIVOT_BOUNDBOX MOD_WIREFRAME CUBE LIGHTPROBE_SPHERE
 		titlegrid.prop(self, "meshalign_category", text="", icon="VIEW3D")
+
+		########## Image Mesh ##########
+		layout.separator(factor = 2.0)
+		titlegrid = layout.grid_flow(row_major=True, columns=2, even_columns=True, even_rows=True, align=False)
+		titlegrid.label(text="Image Mesh", icon="IMAGE_DATA")
+		titlegrid.prop(self, "imagemesh_category", text="", icon="VIEW3D")
 		
 		########## Planar UV ##########
 		layout.separator(factor = 2.0)
@@ -216,9 +235,83 @@ class MeshKitPreferences(bpy.types.AddonPreferences):
 # Local project settings
 
 class MeshKitSettings(bpy.types.PropertyGroup):
-	
-	
-	
+
+	########## Image Mesh ##########
+
+	image_mesh_segmentation: bpy.props.EnumProperty(
+		name="Segmentation",
+		description="How transparent gaps divide the image into mesh islands",
+		items=[
+			("NONE", "None", "Create one face covering the complete image"),
+			("RECTILINEAR", "Rectilinear", "Recursively split along horizontal and vertical transparent gaps"),
+			("CONTOUR", "Contour", "Create an outlined polygon for each separated image group"),
+			("BOTH", "Both", "Split rectilinearly, then contour each resulting region"),
+		],
+		default="NONE",
+	)
+	image_mesh_threshold: bpy.props.IntProperty(
+		name="Threshold",
+		description="Transparent gaps larger than this pixel count separate islands; half the value is also used as boundary padding",
+		default=16,
+		min=4,
+		max=256,
+	)
+	image_mesh_iterations: bpy.props.IntProperty(
+		name="Iterations",
+		description="Maximum number of recursive rectilinear subgroup passes",
+		default=2,
+		min=1,
+		max=8,
+	)
+	image_mesh_detail: bpy.props.IntProperty(
+		name="Contour Detail",
+		description="Maximum contour simplification deviation in pixels; larger values create fewer perimeter points",
+		default=4,
+		min=1,
+		max=256,
+	)
+	image_mesh_sort: bpy.props.EnumProperty(
+		name="Sort Order",
+		description="Order in which mesh-island polygons are created",
+		items=[
+			("LR_TD", "Left to Right, Top to Bottom", "Sort from the top-left in standard reading order"),
+			("RL_TD", "Right to Left, Top to Bottom", "Sort from the top-right"),
+			("LR_BU", "Left to Right, Bottom to Top", "Sort from the bottom-left"),
+			("RL_BU", "Right to Left, Bottom to Top", "Sort from the bottom-right"),
+			("CENTER_OUT", "Center Out", "Sort outward from the image center"),
+			("EDGE_IN", "Edge In", "Sort inward from the image edge"),
+			("RANDOM", "Random", "Use a deterministic random order"),
+		],
+		default="LR_TD",
+	)
+	image_mesh_seed: bpy.props.IntProperty(
+		name="Seed",
+		description="Seed used for deterministic random island sorting",
+		default=0,
+	)
+	image_mesh_scale: bpy.props.IntProperty(
+		name="Pixels Per Meter",
+		description="Number of source-image pixels represented by one Blender meter",
+		default=1000,
+		min=1,
+		soft_max=10000,
+	)
+	image_mesh_alignment: bpy.props.EnumProperty(
+		name="Alignment",
+		description="Original-image point placed at the object origin",
+		items=[
+			("TOP_LEFT", "Top Left", "Align the original image's top-left corner to the origin"),
+			("TOP", "Top", "Align the original image's top-center to the origin"),
+			("TOP_RIGHT", "Top Right", "Align the original image's top-right corner to the origin"),
+			("LEFT", "Left", "Align the original image's center-left to the origin"),
+			("CENTER", "Center", "Align the original image's center to the origin"),
+			("RIGHT", "Right", "Align the original image's center-right to the origin"),
+			("BOTTOM_LEFT", "Bottom Left", "Align the original image's bottom-left corner to the origin"),
+			("BOTTOM", "Bottom", "Align the original image's bottom-center to the origin"),
+			("BOTTOM_RIGHT", "Bottom Right", "Align the original image's bottom-right corner to the origin"),
+		],
+		default="CENTER",
+	)
 	########## Edit Attribute ##########
 	
 	def attribute_enum_items(self, context):
@@ -979,6 +1072,7 @@ def register():
 	radial_offset.register()
 	segment_mesh.register()
 	edit_attribute.register()
+	image_mesh.register()
 	mesh_align.register()
 	uv_mesh.register()
 	vertex_quantize.register()
@@ -989,6 +1083,7 @@ def unregister():
 	########## Unregister Components ##########
 	vertex_quantize.unregister()
 	uv_mesh.unregister()
+	image_mesh.unregister()
 	edit_attribute.unregister()
 	mesh_align.unregister()
 	segment_mesh.unregister()
@@ -1008,4 +1103,4 @@ def unregister():
 
 if __name__ == "__main__":
 	register()
-	
+

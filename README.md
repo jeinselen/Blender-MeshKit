@@ -18,6 +18,12 @@
 
   - Shifts an object's geometry relative to its origin, aligning the bounding box to the negative, centre, or positive side of each axis independently
 
+- ### Image Mesh
+
+  - Imports one or more images as individually managed mesh objects, with rectilinear, contour, or combined alpha-based segmentation
+  - Stores each source filepath as a visible, editable `Image Mesh Source` object custom property
+  - Uses a shared, customisable shader node group across unique per-image materials
+
 - ### Planar UV
 
   - Projects UV coordinates from a specified axis using numerical scale inputs for repeatability
