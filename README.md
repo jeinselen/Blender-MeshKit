@@ -21,6 +21,7 @@
 - ### Image Mesh
 
   - Imports one or more images as individually managed mesh objects, with rectilinear, contour, or combined alpha-based segmentation
+  - Re-import existing objects with new settings or replace source image while preserving materials
   - Stores each source filepath as a visible, editable `Image Mesh Source` object custom property
   - Uses a shared, customisable shader node group across unique per-image materials
 
@@ -32,7 +33,7 @@
 
 - ### Point Array
 
-  - Generates vertex point arrays in various patterns, including cubic grid, golden spiral, and poisson packing
+  - Generates vertex point arrays in various patterns, including cubic grid, golden spiral, poisson packing, rectangle, triangle, tri-hex, hexagon, random walk, and QR code using any text string
 
     ![Screenshot-PointArray](images/Screenshot-PointArray.png)
 
@@ -50,7 +51,7 @@
 
 - ### UV Mesh
 
-  - Bake a static mesh from a selected uv map, particularly useful for debugging dynamic mapping created in Geometry Nodes
+  - Bake the selected UV map of an evaluated mesh (including Geometry Nodes mapping) into a static mesh object (useful for debugging or exporting SVG data with [Delivery Kit I/O](https://github.com/jeinselen/Blender-DeliveryKit))
 
 - ### Vertex Quantize
 
